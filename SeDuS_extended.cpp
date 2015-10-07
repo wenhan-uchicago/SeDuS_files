@@ -64,14 +64,22 @@ int SUPERTIME = 10; // Number of simulations per execution
 int BLOCKLENGTH = 10000; // Block length
 int SAMPLE = 50; // Sample size
 #define MUTTABLESIZE 1000000 // Maximum number of mutations (size of muttable)
-#define B 3 // Maximum number of blocks per chromosome
+
+// #define B 3 // Maximum number of blocks per chromosome
+#define B 5 // WHC: Maximum number of blocks per chromosome
+
+// WHC: define index for each block, instead of using 0, 1, 2 for original, single-copy and duplicated
+int ori_index = 0, single_1 = 1, dup_1 = 2, single_copy_2 = 3, dup_2 = 4;
+
 #define numOfBins 5 // Number of segments in which we divide each block (exclusively used for analysis)
 #define maxNumOfHS 10  // Maximum number of crossover hotspots
 #define numofsamples 1 // Number of different samples taken per run
 
-int BIGTIME = 70;  // BIGTIME * N is the total number of generations simulated per run
+// int BIGTIME = 70;  // BIGTIME * N is the total number of generations simulated per run
+int BIGTIME = 200;  // WHC: BIGTIME * N is the total number of generations simulated per run
 int BURNINTIME = 30; // BURNINTIME * N is the number of generations in Phase I
-int STRUCTUREDTIME = 20; // STRUCTUREDTIME * N is the number of generations in Phase II
+// int STRUCTUREDTIME = 20; // STRUCTUREDTIME * N is the number of generations in Phase II
+int STRUCTUREDTIME = 30; // WHC: STRUCTUREDTIME * N is the number of generations in Phase II
 
 int TIMELENGTH = (int) BIGTIME * N; // Total number of generations (including all phases)
 int BURNIN = (int) BURNINTIME * N; // Number of generations in phase I
@@ -81,7 +89,9 @@ float THETA = 0.001; // Population scaled mutation rate: THETA = 4 N mu
 float R = 10; // Population scaled crossover rate: R = 4 N rho*BLOCKLENGTH
 float C = 0.5; // Population scaled gene conversion rate: C = 4N*kappa*lambda
 
-int numHS = 1; // Number of hotspots
+// int numHS = 1; // Number of hotspots
+int numHS = 3; // WHC: Number of hotspots, single_2 is a scaled hopspot representing a 2MB region
+
 int crossoverBegin[maxNumOfHS]; // Start point of crossover regions
 int crossoverEnd[maxNumOfHS]; // End point of crossover regions
 float crossoverRatio[maxNumOfHS]; // Relative weights of crossover regions
@@ -99,7 +109,7 @@ struct chrom { // Chromosomes
   std::vector<std::vector<int>> mutation;
   chrom(){
     mutation.resize(B);
-    for(unsigned int i=0;i<mutation.size();i++){mutation[i].resize(BLOCKLENGTH/2);}
+    for(unsigned int i=0;i<mutation.size();i++){mutation[i].resize(BLOCKLENGTH/2);} // WHC: is the size just for saving memory
   }
 };
 
@@ -117,7 +127,7 @@ struct prev_pres {
 struct fertility_info{
   int x;
   int y;
-  bool recombinatrix;
+  bool recombinatrix;		// WHC: useless?
 };
 
 
@@ -128,12 +138,50 @@ struct fertility_info{
 //// PARAMETERS OF EVENT ////
 float mu = THETA / (4 * N); // Mutation rate per nucleotide and generation
 float rho = R / (4 * N * BLOCKLENGTH); // Crossover rate per nucleotide and generation
+
+// WHC: may consider changing
 float meanTractLength = 100; // Mean Gene Conversion Tract Length (lambda)
+
 float kappa = C / (4 * N * meanTractLength); // Gene Conversion Initiation Rate
+
+// WHC: may consider changing
 float meps = 0; // Length of the 100% identity tract
 float similarityInConvTract = 0; // Percent of similarity required for conversion in all conversion tract
-float donorRatio = 0.5; // Percentage of gene conversion events that occur from the original to the duplicated block
+
+// float donorRatio = 0.5; // Percentage of gene conversion events that occur from the original to the duplicated block
+
+/* WHC: donorRatio should be a 2-D array, donorRatio[ori][dup_1] = the percent of donor is ori compared with is dup_1, i.e.
+ * (dis-enable command-line input of donorRatio for now
+ * (should actually be 5x5 array, as ori_index = 0, dup_1 = 2, dup_2 = 4
+
+ *                ori              single_1     dup_1         single_2         dup_2
+ *     ori         -1                 -1      x(ori->dup_1)      -1         x(ori->dup_2)
+ *     single_1    -1                 -1         -1              -1              -1
+ *     dup_1     1 - x(ori->dup_1)    -1         -1              -1         x(dup_1->dup_2)
+ *     single_2    -1                 -1         -1              -1              -1
+ *     dup_2     1 - x(ori->dup_2)    -1    1 - x(dup_1->dup2)   -1              -1
+ *
+ *     correspondingly, there should be a step in void conversion(), to pick 2 duplications first
+ *     i.e. if (p <= 1/3) choose ori & dup_1; else if (1/3 < p <= 2/3) choose ori & dup_2; else if (p > 2/3) choose dup1&2;
+ */
+
+const float ori_to_dup_1 = 0.5, ori_to_dup_2 = 0.5, dup_1_to_dup_2 = 0.5;
+// Percentage of gene conversion events that occur from the original to the duplicated block
+// WHC: donorRatio initialization
+float donorRatio[5][5] = {
+  {-1, -1, ori_to_dup_1, -1, ori_to_dup_2},
+  {-1, -1, -1, -1, -1},
+  {1 - ori_to_dup_1, -1, -1, -1, dup_1_to_dup_2},
+  {-1, -1, -1, -1, -1},
+  {1 - ori_to_dup_2, -1, 1 - dup_1_to_dup_2, -1, -1}
+};
+
+
+
+
+// WHC: this process of choose same/different chroms could remain the same
 float sameDifIGC = 1; // Proportion of IGC events that occur between copies in the same chromosome (1- between copies in homologous chromosomes)
+
 bool dupType = 1; // Duplication mechanism: 0 = to the same chromosome / 1 = to the partner chromosome
 
 //// GENEALOGICAL MATRICES ////
@@ -151,7 +199,10 @@ std::vector<chrom> table;
 std::vector<std::vector<chrom*>> pointer; // GENOMIC INFORMATION
 int era, run; // t = generation inside each era, era = PROMETHEUS generations inside each phase (from 0 to BIGTIME-1), run = number of simulation runs (from 0 to SUPERTIME-1)
 
-int fixationTrajectory[20000 + 1]; // Absolute frequency of the duplication in each generation of fixation process
+// WHC: maybe too short for ours
+// int fixationTrajectory[20000 + 1]; // Absolute frequency of the duplication in each generation of fixation process
+int fixationTrajectory[30000 + 1]; // Absolute frequency of the duplication in each generation of fixation process
+
 std::vector<bool> multihit; // Record the positions in which a mutation has occurred
 int duplicationFreq; // Absolute frequency of the duplication in the present generation
 bool duFreq; // Duplication has occurred or not
@@ -187,7 +238,9 @@ void parentpicking(int[maxNumOfHS], int[maxNumOfHS], float[maxNumOfHS], int, int
 
 void duplication(int,int,bool); // Create Duplication for eva (first duplicated chromosome)
 void mutation(float, int, int); // For each fertile chromosome decide if a mutation happens and execute it if necessary
-void conversion(float, int, int, int, float, float); // Only when duFreq is true. For each fertile chromosome decide if conversion happens and execute it if necessary
+
+// WHC: will use pointer donorRatio instead of float
+void conversion(float, int, int, int, float (*donorRatio)[5], float); // Only when duFreq is true. For each fertile chromosome decide if conversion happens and execute it if necessary
 
 void statistics(int, bool); // Execution of all the statistic calculations (for each Era)
 void FSL(int); // Count of All the Segregating, Fixed, Lost and Shared sites
@@ -266,8 +319,11 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
 	} else if (strcmp(cstr,"-y") == 0) { // RATIO IGC SAME / HOMOLOGOUS CHROMOSOMES
 	  sscanf(argv[i+1], "%f", &argSameDifIGC);  sameDifIGC = argSameDifIGC;
 	} else if (strcmp(cstr,"-d") == 0) { // DONOR RATIO
-	  sscanf (argv[i+1], "%f", &argDonorRatio); donorRatio = argDonorRatio;
-	  if(donorRatio < 0 || donorRatio > 1 ) { cout << "Donor ratio must be between 0 and 1.\n"; exit(0);}
+	  // WHC: dis-enable for now
+	  cout << "You must hard-code donor ratio matrix now!\n";
+	  exit(0);
+	  //	  sscanf (argv[i+1], "%f", &argDonorRatio); donorRatio = argDonorRatio;
+	  //	  if(donorRatio < 0 || donorRatio > 1 ) { cout << "Donor ratio must be between 0 and 1.\n"; exit(0);}
 	} else if (strcmp(cstr,"-f") == 0) { // TIME TO FIXATION
 	  sscanf (argv[i+1],"%d",&timeToFixation);
 	} else if (strcmp(cstr,"-w") == 0) { // WHOLE-REGION CROSSOVER
@@ -291,7 +347,9 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       }
     }
   }
-	
+
+
+  
   multihit.resize(BLOCKLENGTH); // WHC: allocate BLOCKLENGTH-long size for vector multihit
   table.resize(4*N);	      // WHC: a table of struct chroms
   pointer.resize(2);for(unsigned int i=0;i<pointer.size();i++){pointer[i].resize(2*N);} // WHC: pointers to chroms
@@ -971,8 +1029,10 @@ void mutation(float probability, int i, int pres) {
 
 }
 
-void conversion(float probability, int t, int i, int pres, float donorRatio, float sameDifIGC) {
+// void conversion(float probability, int t, int i, int pres, float donorRatio, float sameDifIGC) {
+void conversion(float probability, int t, int i, int pres, float (*donorRatio)[5], float sameDifIGC) {
   int k, partner, donor, receptor, chrDonor, chrReceptor, IGC, vald0, valdf, valr0, valrf, val, junction, tractlength, eqmut, otherk, differences;
+
   float p;
   chrom * chr1, * chr2;
   chr1 = pointer[pres][i];
