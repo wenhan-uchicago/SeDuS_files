@@ -278,7 +278,8 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
   int argN, argk, argBlockLength, argSample, argBurnIn, argBigTime;
   int sup, timeToFixation=0, num;  
   float argTheta, argR, argC, argMTL, argMEPS, argDonorRatio, argSameDifIGC, Beg, End, HSRatio;
-  bool notSC = 0;
+  //  bool notSC = 0;
+  bool notSC = 1;
 		
   if (argc < 2) { // Check the value of argc. If not enough parameters have been passed, inform user and exit.
     cout << "You need to provide a Simulation ID\n";
@@ -1064,6 +1065,9 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
       }			
       chr2 = pointer[pres][partner];
 
+      /* ================================================================================================ */
+      // beginning of new donor/receptor selection method
+      
       // WHC: randomly choose a pair of duplicated blocks, depending on the number of blocks chrom has
       // WHC: also, return value of donorRatio
       int block_1, block_2;
@@ -1077,6 +1081,7 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	// WHC: randomly generate 0, 1, 2
 	// WHC: which correspond to ori&dup_1, ori&dup_2 and dup_1&dup_2 pairs
 	int which_pair = rand() % 3;
+
 	if (which_pair == 0) {	// WHC: ori&dup_1 pair
 	  block_1 = ori_index;
 	  block_2 = dup_1;
@@ -1158,26 +1163,79 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	  chrReceptor = i;
 	}
       }
-    }else{
+
+      // end of new donor/receptor selection method
+      /* ================================================================================================ */
+      
+    } else {
       // WHC: if IGCmatrix[i][t] == false, this means that no IGC between chroms will happen, due to void genealogy()
       // WHC: but IGC could still happen within chrom
       p = rand() / ((float) RAND_MAX + 1);
-      if (p < (2 * probability * BLOCKLENGTH * sameDifIGC)) {
-	IGC = 1;
-	// Determines which block will be the donor and which will be the receptor
-	p = rand() / ((float) RAND_MAX + 1);
-	if (p < donorRatio) {
-	  donor = 0;
-	  receptor = 2;
-	} else {
-	  donor = 2;
-	  receptor = 0;
+      // WHC: should distinguish between 2 duplications and 3 duplications
+      if (chr1->b == 3) {
+	int block_1 = ori_index;
+	int block_2 = dup_1;
+	float donorRatio = p_donorRatio[0][2];
+
+	if (p < (2 * probability * BLOCKLENGTH * sameDifIGC)) {
+	  IGC = 1;
+	  // Determines which block will be the donor and which will be the receptor
+	  p = rand() / ((float) RAND_MAX + 1);
+	  if (p < donorRatio) {
+	    donor = block_1;
+	    receptor = block_2;
+	  } else {
+	    donor = block_2;
+	    receptor = block_1;
+	  }
+	  chrDonor = i;
+	  chrReceptor = i;
 	}
-	chrDonor = i;
-	chrReceptor = i;
+      } else if (chr1->b == 5) {
+	if (p < (3 * probability * BLOCKLENGTH * sameDifIGC)) { // WHC: should this be 3? Because we have 3 blocks...
+	  IGC = 1;
+	  // Determines which block will be the donor and which will be the receptor
+	  int which_pair = rand() % 3;
+	  int block_1, block_2;
+	  float donorRatio;
+	  if (which_pair == 0) {	// WHC: ori&dup_1 pair
+	    block_1 = ori_index;
+	    block_2 = dup_1;
+	    donorRatio = p_donorRatio[0][2];
+	  } else if (which_pair == 1) { // WHC: ori&dup_2 pair
+	    block_1 = ori_index;
+	    block_2 = dup_2;
+	    donorRatio = p_donorRatio[0][4];
+	  } else if (which_pair == 2) { // WHC: dup_1&dup_2 pair
+	    block_1 = dup_1;
+	    block_2 = dup_2;
+	    donorRatio = p_donorRatio[2][4];
+	  } else {			// WHC: wrong
+	    cout << "something is wrong in void conversion()\n";
+	    exit(0);
+	  }
+
+	  p = rand() / ((float) RAND_MAX + 1);
+	  if (p < donorRatio) {
+	    donor = block_1;
+	    receptor = block_2;
+	  } else {
+	    donor = block_2;
+	    receptor = block_1;
+	  }
+	  chrDonor = i;
+	  chrReceptor = i;
+
+	} else {
+	  cout << "something wrong in void conversion()\n";
+	  exit(0);
+	}
       }
     }
-    if(IGC == 1){
+
+    // WHC: not changed, remains the same; I assume it will work :)
+    
+    if(IGC == 1) {
       chr1 = pointer[pres][chrDonor];
       chr2 = pointer[pres][chrReceptor];
       // Determines conversion initiation point
