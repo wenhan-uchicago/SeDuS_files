@@ -51,11 +51,11 @@ int main() {
   int ori_index = 0, dup_1 = 2, dup_2 = 4;
   chrom chr_1, chr_2;
   chrom *chr1 = &chr_1, *chr2 = &chr_2;
-  chr1->b = 5;
-  chr2->b = 3;
+  chr1->b = 3;
+  chr2->b = 5;
   float p;
 
-  for (int m = 0; m < 10; ++m) {
+  for (int m = 0; m < 1000; ++m) {
       
   if (chr1->b == 3 && chr2->b <= 3) {		// WHC: pick 2 pairs
     block_1 = ori_index;
@@ -147,8 +147,11 @@ int main() {
     }
   }
 
+
+  
   cout << donor << '\t' << receptor << '\t' << chrDonor << '\t' << chrReceptor << '\n';
 }
 
   return 0;
 }
+
