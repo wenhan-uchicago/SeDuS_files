@@ -763,6 +763,9 @@ void genealogy(float probability, int strornot, float IGCprobability) { // Gener
 			
 	if((sameDifIGC!=1)){
 	  p = rand() / ((float) RAND_MAX + 1);// Determine recombination processes (with probability "probability"); WHC: probabily error, should be "Determin IGC processes"
+
+	  // WHC: the (1 - sameDifIGC), is due to the fact there is another p < (2 * probability * BLOCKLENGTH * sameDifIGC) in void conversion(); this one here is to only test whether IGC comes from different chromosomes, if so, need to record its genealogy; if not, then it either doesn't have IGC, or it has IGC within the same chromosome, which doesn't require genealogy for its partner chromosome
+	  
 	  if (p < (IGCprobability * (1-sameDifIGC))){
 	    IGCmatrix[i][tt] = true;
 	    if(i%2==0) {
@@ -774,6 +777,8 @@ void genealogy(float probability, int strornot, float IGCprobability) { // Gener
 	      }
 	      fertility[i+1][tt]=true;
 	    }else{
+	      // WHC: same algorithm as in void phaseII() -- scan from 1st chrom to 2*N th chrom; if i%2 == 0, then record (i+1)'s (its partner that hasn't been scanned yet) genealogy; if i%2 != 0, which means its previous partner is already scanned
+	      
 	      if(fertility[i-1][tt]==false){
 		fertility_info fi;
 		fi.x=(i-1);
@@ -1030,34 +1035,81 @@ void mutation(float probability, int i, int pres) {
 }
 
 // void conversion(float probability, int t, int i, int pres, float donorRatio, float sameDifIGC) {
-void conversion(float probability, int t, int i, int pres, float (*donorRatio)[5], float sameDifIGC) {
+
+// WHC: add a new step here, to select a pair of duplicated genes, i.e. ori & dup_1 or dup_1 & dup_2 etc. to do conversion
+void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)[5], float sameDifIGC) {
   int k, partner, donor, receptor, chrDonor, chrReceptor, IGC, vald0, valdf, valr0, valrf, val, junction, tractlength, eqmut, otherk, differences;
 
   float p;
   chrom * chr1, * chr2;
   chr1 = pointer[pres][i];
   IGC = 0;
+
+
+
+  
   // If the chr has duplicated block
-  if (chr1[0].b == 3) {
-    if((sameDifIGC!=1) && (IGCmatrix[i][t]==true)){
+  //  if (chr1[0].b == 3) {
+  // WHC: as long as #blocks >= 3
+  // WHC: REMEMBER, #blocks also determine which 2 pairs of duplications could be selected
+  
+  if (chr1->b >= 3) {
+    if((sameDifIGC!=1) && (IGCmatrix[i][t]==true)){ // IGC on different chroms
       IGC = 1;
-      // Determines which block will be the donor and which will be the receptor
-      p = rand() / ((float) RAND_MAX + 1);
-      if (p < donorRatio) {
-	donor = 0;
-	receptor = 2;
-      } else {
-	donor = 2;
-	receptor = 0;
-      }
+
       if (i % 2 == 0) {
 	partner = (i + 1);
       } else {
 	partner = (i - 1);
       }			
       chr2 = pointer[pres][partner];
-      if (chr2[0].b == 3) {
-	p = rand() / ((float) RAND_MAX + 1);
+
+      // WHC: randomly choose a pair of duplicated blocks, depending on the number of blocks chrom has
+      // WHC: also, return value of donorRatio
+      int block_1, block_2;
+      float donorRatio;
+      
+      if (chr1->b == 3 && chr2->b <= 3) {		// WHC: pick 2 pairs
+	block_1 = ori_index;
+	block_2 = dup_1;
+	donorRatio = p_donorRatio[0][2];
+      } else if (chr1->b == 5 || chr2->b == 5) {	// WHC: could pick ori, dup_1, dup_2 blocks
+	// WHC: randomly generate 0, 1, 2
+	// WHC: which correspond to ori&dup_1, ori&dup_2 and dup_1&dup_2 pairs
+	int which_pair = rand() % 3;
+	if (which_pair == 0) {	// WHC: ori&dup_1 pair
+	  block_1 = ori_index;
+	  block_2 = dup_1;
+	  donorRatio = p_donorRatio[0][2];
+	} else if (which_pair == 1) { // WHC: ori&dup_2 pair
+	  block_1 = ori_index;
+	  block_2 = dup_2;
+	  donorRatio = p_donorRatio[0][4];
+	} else if (which_pair == 2) { // WHC: dup_1&dup_2 pair
+	  block_1 = dup_1;
+	  block_2 = dup_2;
+	  donorRatio = p_donorRatio[2][4];
+	} else {			// WHC: wrong
+	  cout << "something is wrong in void conversion()\n";
+	  exit(0);
+	}
+      } else {
+	cout << "wrong on void conversion() 2\n";
+	exit(0);
+      }
+
+      // Determines which block will be the donor and which will be the receptor
+      p = rand() / ((float) RAND_MAX + 1);
+      if (p < donorRatio) {
+	donor = block_1;
+	receptor = block_2;
+      } else {
+	donor = block_2;
+	receptor = block_1;
+      }
+      
+      if (chr2->b == 5 && chr1->b == 5) {
+	p = rand() / ((float) RAND_MAX + 1); // WHC: randomly choose from which chromosome to which
 	if (p < 0.5) {
 	  chrDonor = i;
 	  chrReceptor = partner;
@@ -1065,8 +1117,40 @@ void conversion(float probability, int t, int i, int pres, float (*donorRatio)[5
 	  chrDonor = partner;
 	  chrReceptor = i;
 	}
-      } else {
-	if(donor == 2){
+      } else if (chr2->b == 5 && chr1->b == 3) {
+	if (block_2 == dup_2) {	// only chr2 can be donor
+	  chrDonor = partner;
+	  chrReceptor = i;
+	} else {		// randomly chosen
+	  p = rand() / ((float) RAND_MAX + 1); // WHC: randomly choose from which chromosome to which
+	  if (p < 0.5) {
+	    chrDonor = i;
+	    chrReceptor = partner;
+	  } else {
+	    chrDonor = partner;
+	    chrReceptor = i;
+	  }
+	}
+      } else if (chr2->b == 3) { // WHC: chr2 only contains ori and dup_1 (phase which loses dup_1 will not be considered here
+	// chr1->b could either be 3 or 5
+	if (block_2 == dup_2) {
+	  chrDonor = i;
+	  chrReceptor = partner;
+	} else {
+	  p = rand() / ((float) RAND_MAX + 1); // WHC: randomly choose from which chromosome to which
+	  if (p < 0.5) {
+	    chrDonor = i;
+	    chrReceptor = partner;
+	  } else {
+	    chrDonor = partner;
+	    chrReceptor = i;
+	  }
+	}
+	
+      } else if (chr2->b == 2) {
+	// WHC: may be a source of errors, careful
+	//	if(donor == 2){
+	if (donor == dup_1 || donor == dup_2) { // this chrom does not have duplications
 	  chrDonor = i;
 	  chrReceptor = partner;
 	} else {
@@ -1075,6 +1159,8 @@ void conversion(float probability, int t, int i, int pres, float (*donorRatio)[5
 	}
       }
     }else{
+      // WHC: if IGCmatrix[i][t] == false, this means that no IGC between chroms will happen, due to void genealogy()
+      // WHC: but IGC could still happen within chrom
       p = rand() / ((float) RAND_MAX + 1);
       if (p < (2 * probability * BLOCKLENGTH * sameDifIGC)) {
 	IGC = 1;
