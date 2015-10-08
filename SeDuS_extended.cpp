@@ -860,6 +860,9 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
     chr->b = childblocks;
     minblock = minim(pointer[prev][father]->b, pointer[prev][partner]->b);
     //DETERMINE THE HOTSPOT WHERE CROSSOVER WILL OCCUR
+
+    // WHC: Should always consider crossover after deletion happened
+    // WHC: probabily will just write a parentpicking() specifically for that phase...
     p = rand() / ((float) RAND_MAX + 1);
     defHS = numCrossRegions-1;
     num = 1;
