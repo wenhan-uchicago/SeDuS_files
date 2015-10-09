@@ -19,31 +19,21 @@
 
 using namespace std;
 
+int BLOCKLENGTH = 10000; // Block length
+#define maxNumOfHS 3  // Maximum number of crossover hotspots
+// WHC: hard cord to initiate these values
+int crossoverBegin[maxNumOfHS] = {0, 3 * BLOCKLENGTH, 4 * BLOCKLENGTH}; // Start point of crossover regions
+int crossoverEnd[maxNumOfHS] = {3 * BLOCKLENGTH, 4 * BLOCKLENGTH, 5 * BLOCKLENGTH}; // End point of crossover regions
+// WHC: artificially selected values, to represent 2MB region as crossover hotspot
+float crossoverRatio[maxNumOfHS] = {0.15, 0.8, 0.05}; // Relative weights of crossover regions
+int numHS = 3; // WHC: Number of hotspots, single_2 is a scaled hopspot representing a 2MB region
+
 int main() {
-
-
-
-  // WHC: donorRatio initialization
-
-
-    
-const float ori_to_dup_1 = 0.5, ori_to_dup_2 = 0.5, dup_1_to_dup_2 = 0.5;
-// Percentage of gene conversion events that occur from the original to the duplicated block
-float donorRatio[5][5] = {
-  {-1, -1, ori_to_dup_1, -1, ori_to_dup_2},
-  {-1, -1, -1, -1, -1},
-  {1 - ori_to_dup_1, -1, -1, -1, dup_1_to_dup_2},
-  {-1, -1, -1, -1, -1},
-  {1 - ori_to_dup_2, -1, 1 - dup_1_to_dup_2, -1, -1}
-};
-  float (*p)[5] = donorRatio;  
-  for (int i = 0; i < 5; ++i) {
-    for (int j = 0; j < 5; ++j) {
-      cout << donorRatio[i][j] << " ";
-    }
-    cout << '\n';
+  float total = 0;
+  for (int HS = 0; HS < numHS; HS++) {
+    cout << crossoverRatio[HS] << '\n';
+    total += crossoverRatio[HS];
   }
-  cout << p[4][2] << endl;
-
+  cout << total << endl;
   return 0;
 }
