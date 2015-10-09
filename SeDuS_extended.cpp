@@ -183,6 +183,7 @@ float donorRatio[5][5] = {
 
 
 // WHC: this process of choose same/different chroms could remain the same
+// WHC: sameDifIGC, when == 1, mean all from same chrom; if == 0, means all from different chrom
 float sameDifIGC = 1; // Proportion of IGC events that occur between copies in the same chromosome (1- between copies in homologous chromosomes)
 
 bool dupType = 1; // Duplication mechanism: 0 = to the same chromosome / 1 = to the partner chromosome
@@ -698,6 +699,8 @@ void genealogy(float probability, int strornot, float IGCprobability) { // Gener
       // trajectime is the time in which we are in fixationTrajectory[] array (used to know the number of chr that carry the dup at each time)
       int trajectime = PROMETHEUS*(era-((int)BURNIN/PROMETHEUS))+tt+1;
       // Randomly mix all the chromosomes of the present generation
+      // WHC: as the next step (choosing a father with dup ramdomly always pick the first several chroms, this step is for randomly picking chroms for having dup
+      
       for(int i=0 ; i < 2*N ; i++){
 	int val = (int) (rand()%(2*N));
 	int temp = duplicontent[present][i];
@@ -708,6 +711,8 @@ void genealogy(float probability, int strornot, float IGCprobability) { // Gener
       // For all the chr that have to have the duplication at this time...
       for(int i=0 ; i < fixationTrajectory[trajectime] ; i++){
 	// Choose a father randomly (from the previous duplicated population)
+	// WHC: as present chroms which will have dup have been chosen before, this is for randomly picking a father
+	// WHC: remember, i = 0, 1, 2, ...
 	int val=(int) (rand()%(fixationTrajectory[trajectime-1]));
 	ancestry[duplicontent[present][i]][tt] = duplicontent[previous][val];
       }
@@ -772,13 +777,17 @@ void genealogy(float probability, int strornot, float IGCprobability) { // Gener
 	}
 			
 	if((sameDifIGC!=1)){
-	  p = rand() / ((float) RAND_MAX + 1);// Determine recombination processes (with probability "probability"); WHC: probabily error, should be "Determin IGC processes"
+	  p = rand() / ((float) RAND_MAX + 1);// Determine IGC processes (with probability "IGCprobability"); WHC: probabily error, should be "Determin IGC processes"; also, it is determining IGC process between 2 chroms, instead of on itself
 
 	  // WHC: the (1 - sameDifIGC), is due to the fact there is another p < (2 * probability * BLOCKLENGTH * sameDifIGC) in void conversion(); this one here is to only test whether IGC comes from different chromosomes, if so, need to record its genealogy; if not, then it either doesn't have IGC, or it has IGC within the same chromosome, which doesn't require genealogy for its partner chromosome
 	  
 	  if (p < (IGCprobability * (1-sameDifIGC))){
 	    IGCmatrix[i][tt] = true;
 	    if(i%2==0) {
+	      // WHC: here, fertility[i+1][tt] will be true, which means [i+1] will be tested for IGC & recombination
+	      // WHC: however, if i%2 == 1, which means its partner [i-1] may have fertility[i-1][tt] == false, which means
+	      // WHC: it is NOT tested for recombination
+	      // WHC: that is why the else {} tests recombination for it
 	      if(fertility[i+1][tt]==false){
 		fertility_info fi;
 		fi.x=(i+1);
@@ -826,6 +835,10 @@ void genealogy(float probability, int strornot, float IGCprobability) { // Gener
 		    fertility[ancestry[i-1][tt]-1][tt-1]=true;
 		  }
 		}
+		
+		// WHC: this p = rand() here, is due to, if i % 2 == 0, then (i+1) will be added to fertility_list
+		// WHC: which means that it will NOT be tested 
+		
 		p = rand() / ((float) RAND_MAX + 1);// Determine recombination processes (with probability "probability")
 		if (p < (IGCprobability * (1-sameDifIGC))){
 		  IGCmatrix[i-1][tt] = true;
@@ -922,10 +935,14 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
 
 	//COPY INFO IN JUNCTION BLOCK (BLOCK 1)
 	//FROM PARTNER
+
+	// WHC: copy mutation from [partner] until junction point
 	for (k = 0; k < valr0; k++) {
 	  chr->mutation[junctionBlock][k] = pointer[prev][partner]->mutation[junctionBlock][k];
 	}
 	//FROM FATHER
+	
+	// WHC: copy mutation from [father] from junction point on
 	for (k = 0; k < (pointer[prev][father]->mpb[junctionBlock] - vald0); k++) {
 	  chr->mutation[junctionBlock][k + valr0] = pointer[prev][father]->mutation[junctionBlock][k + vald0];
 	}
@@ -933,6 +950,8 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
 	chr->mpb[junctionBlock] = valr0 + (pointer[prev][father]->mpb[junctionBlock] - vald0);
 
 	//COPY INFO FROM BLOCK 2 IF PRESENT
+	// WHC: as from junction point on, all mutation info comes from father...
+	// WHC: (also, previous step only copy mutation info with the junctionBlock!!!
 	for (j = junctionBlock + 1; j < chr->b; j++) {
 	  if (j < pointer[prev][father]->b) { //j counts 0,1,2 but .b counts 1,2,3
 	    chr->mpb[j] = pointer[prev][father]->mpb[j];
@@ -945,6 +964,8 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
 	}
       }
     } else if (((minblock * BLOCKLENGTH) < end) && ((minblock * BLOCKLENGTH) <= beg)) {
+      // WHC: this steps looks like a "lazy" step; (NO! I was wrong! Imagine if a hot block on block 3 with 100% proposion!
+      // WHC: (then, if we don't have block 3, we don't have recombination!)
       copychr(prev, father, pres, i);
     }
   }// NO RECOMBINATION
@@ -1020,6 +1041,7 @@ void mutation(float probability, int i, int pres) {
       else {
 	val = location(position, pres, i, j);
 	for (k = chr->mpb[j]; k > val; k--) {
+	  // WHC: from last mutation, move everything 1 position backword, until new mutation
 	  chr->mutation[j][k] = chr->mutation[j][k - 1];
 	}
 	chr->mutation[j][val] = position;
