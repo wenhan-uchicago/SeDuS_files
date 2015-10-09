@@ -1,3 +1,8 @@
 Oct 9, 2015
 
 something wrong with sample[2*N]; and sample[] is initialized by SamplingIndividuals(). and many wired sampleXXX just pops out of NOWHERE. going to do trouble-shooting tomorrow. had to sleep.
+
+Oct 9, 2015, again
+
+previous problem was caused by mistakes on having SAMPLE > N, fixed;
+however, float * SiteFrequencySpectrumPrint() seems to return a *local* array; maybe this is causing problem?
