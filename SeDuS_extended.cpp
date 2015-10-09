@@ -72,7 +72,8 @@ int SAMPLE = 50; // Sample size
 int ori_index = 0, single_1 = 1, dup_1 = 2, single_copy_2 = 3, dup_2 = 4;
 
 #define numOfBins 5 // Number of segments in which we divide each block (exclusively used for analysis)
-#define maxNumOfHS 10  // Maximum number of crossover hotspots
+// #define maxNumOfHS 10  // Maximum number of crossover hotspots
+#define maxNumOfHS 3  // Maximum number of crossover hotspots
 #define numofsamples 1 // Number of different samples taken per run
 
 // int BIGTIME = 70;  // BIGTIME * N is the total number of generations simulated per run
@@ -92,9 +93,11 @@ float C = 0.5; // Population scaled gene conversion rate: C = 4N*kappa*lambda
 // int numHS = 1; // Number of hotspots
 int numHS = 3; // WHC: Number of hotspots, single_2 is a scaled hopspot representing a 2MB region
 
-int crossoverBegin[maxNumOfHS]; // Start point of crossover regions
-int crossoverEnd[maxNumOfHS]; // End point of crossover regions
-float crossoverRatio[maxNumOfHS]; // Relative weights of crossover regions
+// WHC: hard cord to initiate these values
+int crossoverBegin[maxNumOfHS] = {0, 3 * BLOCKLENGTH, 4 * BLOCKLENGTH}; // Start point of crossover regions
+int crossoverEnd[maxNumOfHS] = {3 * BLOCKLENGTH, 4 * BLOCKLENGTH, 5 * BLOCKLENGTH}; // End point of crossover regions
+// WHC: artificially selected values, to represent 2MB region as crossover hotspot
+float crossoverRatio[maxNumOfHS] = {0.15, 0.8, 0.05}; // Relative weights of crossover regions
 
 string letter = ""; // Simulation ID
 string str;
@@ -330,6 +333,9 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
 	} else if (strcmp(cstr,"-w") == 0) { // WHOLE-REGION CROSSOVER
 	  crossoverBegin[0] = 1; crossoverEnd[0] = B*BLOCKLENGTH; crossoverRatio[0] = 1; notSC = 1;
 	} else if (strcmp(cstr,"-h") == 0) { // HOTSPOT CROSSOVER
+	  // WHC: disable this function for now
+	  cout << "Sorry but this function is disabled now.\n";
+	  exit(0);
 	  sscanf (argv[i+1],"%d",&num); numHS = num; notSC = 1;
 	  if (argc < (i+4+(num-1)*3)) { cout << "You need to provide numHS and HS_start HS_end HS_ratio for each hotspot.\n"; exit(0);}
 	  float sumRatio = 0.000;
@@ -349,7 +355,6 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
     }
   }
 
-
   
   multihit.resize(BLOCKLENGTH); // WHC: allocate BLOCKLENGTH-long size for vector multihit
   table.resize(4*N);	      // WHC: a table of struct chroms
@@ -364,15 +369,18 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
   IGCmatrix.resize(2 * N);for(unsigned int i=0;i<IGCmatrix.size();i++){IGCmatrix[i].resize(PROMETHEUS);}
 
   correctArguments = 1;
-  if(timeToFixation > 20*N) { cout << "Time to fixation must be smaller than 20N.\n"; exit(0);}
+  //  if(timeToFixation > 20*N) { cout << "Time to fixation must be smaller than 20N.\n"; exit(0);}
+  if(timeToFixation > 50*N) { cout << "Time to fixation must be smaller than 50N.\n"; exit(0);}
   mu = THETA / (4 * N);
   rho = R / (4 * N * BLOCKLENGTH);
   kappa = C / (4 * N * meanTractLength);
 	
   TIMELENGTH = (int) BIGTIME * N; 
   BURNIN = (int) BURNINTIME * N; 
-	
-  //// SET DEFAULT PARAMETERS	
+
+
+  //// SET DEFAULT PARAMETERS
+  // WHC: not default notSC == 1
   if(notSC == 0){		// WHC: mode is SCC, crossover happens only in single-copy region
     crossoverBegin[0] = BLOCKLENGTH;
     crossoverEnd[0] = 2*BLOCKLENGTH;
@@ -413,6 +421,7 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       for (int tt=0 ; tt < PROMETHEUS-1 ; tt++) {fertility_ini[i][tt] = false;}
     }
 
+    
     // INITIALIZATION SUPERTIME
     for (run = 0; run < SUPERTIME; run++) {
       cout << "SUPERTIME = " << run << "\n";
@@ -863,6 +872,7 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
 
     // WHC: Should always consider crossover after deletion happened
     // WHC: probabily will just write a parentpicking() specifically for that phase...
+    // WHC: otherwise I think this is workable for now; when a block that doesn't exist happen, just no crossover and copy parental chrom
     p = rand() / ((float) RAND_MAX + 1);
     defHS = numCrossRegions-1;
     num = 1;
