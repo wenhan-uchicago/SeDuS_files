@@ -504,7 +504,8 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       /* PHASE IV: STRUCTURED_2 TRAJECTORY */
       // WHC: for generating dup_2
       cout << "PHASE IV" << '\n';
-      phaseIV(kappa);
+      // WHC: I do not think ret.prev, ret.pres is necessary...
+      phaseIV(timeToFixation,0, 1, kappa);
       /* END PHASE IV */
 
       for (j = 0; j < B+2; j++) {
