@@ -724,7 +724,7 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
 	++counting_dup_2;
       }
     }
-    cout << "The number of chroms that are carrying dup_2 = ", counting_dup_2 << '\n';
+    cout << "The number of chroms that are carrying dup_2 = " << counting_dup_2 << '\n';
     /* WHC: the end of counting
     /* ================================================================ */
     
