@@ -11,3 +11,7 @@ Oct 10, 2015
 
 Still not figured out why this happens when N = 10, SAMPLE = 5, PROMETHEUS = 10; however, everything works well when N = 100, SAMPLE = 50
 Just have no idea at all
+
+================
+
+Wired thing is, it happens sometimes, but not always... wired..
