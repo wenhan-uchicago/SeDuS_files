@@ -82,9 +82,15 @@ int BURNINTIME = 30; // BURNINTIME * N is the number of generations in Phase I
 // int STRUCTUREDTIME = 20; // STRUCTUREDTIME * N is the number of generations in Phase II
 int STRUCTUREDTIME = 30; // WHC: STRUCTUREDTIME * N is the number of generations in Phase II
 
+// WHC: STRUCTURED_2_TIME * N is the number of generations in Phase IV
+int STRUCTURED_2_TIME = 30;
+
 int TIMELENGTH = (int) BIGTIME * N; // Total number of generations (including all phases)
 int BURNIN = (int) BURNINTIME * N; // Number of generations in phase I
 int STRUCTURED = (int) STRUCTUREDTIME * N; // Number of generations in phase II
+
+// WHC: Number of generations in phase IV
+int STRUCTURED_2 = (int) STRUCTURED_2_TIME * N;
 
 float THETA = 0.001; // Population scaled mutation rate: THETA = 4 N mu
 float R = 10; // Population scaled crossover rate: R = 4 N rho*BLOCKLENGTH
@@ -196,6 +202,10 @@ std::vector<std::vector<bool>> fertility;// Boolean Matrix codifying if a chromo
 std::vector<std::vector<bool>> fertility_ini;//Matrix fertility initialization
 std::vector<std::vector<bool>> recombimatrix;// Boolean Matrix codifying if a chromosome comes from a recent recombination or not (has one or two parents)
 std::vector<std::vector<int>> duplicontent;// Array indicating which chr carry the duplication (with present and previous lines)
+
+// WHC: duplicontent for phaseIV()
+vector<vector<int>> duplicontent_2;
+
 std::vector<std::vector<bool>> IGCmatrix;// Boolean Matrix codifying if a chromosome undergoes IGC or not 
 
 //// GLOBAL VARIABLES AND STATISTICAL QUANTITIES ////
@@ -210,6 +220,9 @@ int fixationTrajectory[30000 + 1]; // Absolute frequency of the duplication in e
 std::vector<bool> multihit; // Record the positions in which a mutation has occurred
 int duplicationFreq; // Absolute frequency of the duplication in the present generation
 bool duFreq; // Duplication has occurred or not
+
+// WHC: Duplication_2 has occurred or not
+bool duFreq_2;
 
 //// GLOBAL INTERNAL VARIABLES FOR FSL ////
 int MutCount; // Total number of mutations segregating (the fixed ones are erased) in each moment
@@ -233,6 +246,9 @@ ofstream SFS[B+2]; // site frequency spectra for each block + collapsed only for
 struct prev_pres phaseI();
 void phaseII(int,int,int, float);
 void phaseIII(float);
+
+// WHC: for phaseIV(); it is a similar function to phaseII()
+void phaseIV(int, int, int, float);
 
 void open_files(); // Opening files
 void close_files(); // Closing files
@@ -367,6 +383,9 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
   fertility_ini.resize(2 * N);for(unsigned int i=0;i<fertility_ini.size();i++){fertility_ini[i].resize(PROMETHEUS);}
   recombimatrix.resize(2 * N);for(unsigned int i=0;i<recombimatrix.size();i++){recombimatrix[i].resize(PROMETHEUS);}
   duplicontent.resize(2);for(unsigned int i=0;i<duplicontent.size();i++){duplicontent[i].resize(2*N);}
+
+  duplicontent_2.resize(2);for(unsigned int i=0;i<duplicontent_2.size();i++){duplicontent_2[i].resize(2*N);}
+  
   IGCmatrix.resize(2 * N);for(unsigned int i=0;i<IGCmatrix.size();i++){IGCmatrix[i].resize(PROMETHEUS);}
 
   correctArguments = 1;
@@ -448,6 +467,9 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
 
       MutCount = 0;
       duFreq = false;
+
+      duFreq_2 = false;
+      
       for (j = 0; j < BLOCKLENGTH; j++) { multihit[j] = false;}
 
       //////////////////////
@@ -613,6 +635,67 @@ void phaseIII(float k){
     statistics(pres, does_print);
   }
 }
+
+/*=====================================================================================================================*/
+// WHC: my phaseIV() is a similar function to phaseII(), now
+
+void phaseIV(int timeToFixation,int prev, int pres, float k){
+  bool does_print = false;
+  // Generating Fixation Trajectory in a diploid population
+  int endTime = GenerateFixationTrajectory(STRUCTURED_2 + 1, timeToFixation);
+  // Picking the first chromosome with the duplication (eva)
+  int eva = (int) (rand() % (2 * N));
+  for (int i = 0; i < 2 * N; i++) {
+    duplicontent_2[0][i] = i;
+    duplicontent_2[1][i] = i;
+  }
+  duplicontent_2[1][0] = eva;
+  duplicontent_2[1][eva] = 0;
+
+  // ================
+  // WHC: up until here, duplication() need to be changed for phaseIV(); maybe consider writing a new duplication_2()?
+  // Duplicate eva (create a new block with old mutations...)
+  duplication_2(eva,pres,dupType); // WHC: the pres (present) here, will be used as prev (previous) in duplication(); because this is the start of PhaseII
+  duFreq_2 = true;
+
+  // BURNIN/PROMETHEUS -> (BURNIN+STRUCTURED)/PROMETHEUS (30 -> 50)
+  // ==========================================================================================================================
+  // WHC: stoped here
+  
+  for (era = (int) BURNIN / PROMETHEUS; era < (int) (BURNIN + STRUCTURED) / PROMETHEUS; era++) {
+    // GENEALOGY (with recombination and taking into account that duplicated chr have duplicated ancestor)
+    genealogy(rho * BLOCKLENGTH, 1, (2 * k * BLOCKLENGTH));
+    int prom=-1;
+    prev = 0;
+    pres = 1;
+    bool skip = false;
+    for (std::vector<fertility_info>::iterator it=fertility_list.begin(); it!=fertility_list.end(); ++it){
+      int i = (*it).x;
+      int t = (*it).y;
+      if(prom!=t){
+	if (prev == 1) {prev = 0;pres = 1;} else {prev = 1;pres = 0;}
+      }
+      prom = t;
+      if(skip == false){
+	parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);// PARENT PICKING (with recombination)
+	mutation(mu, i,pres);// MUTATION and CONVERSION (for each fertile chromosome)
+	if(IGCmatrix[i][t]==true && (i%2 == 0 )){
+	  // WHC: if IGC happend, need to pick and mutate the partner chrom
+	  // WHC: and this should only be done once, thus skip = true after
+	  skip = true;
+	  int otheri = i+1;
+	  parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,otheri,t);// PARENT PICKING (with recombination)
+	  mutation(mu, otheri,pres);// MUTATION and CONVERSION (for each fertile chromosome)
+	}
+	conversion(kappa, t, i, pres, donorRatio, sameDifIGC);							
+      }else {skip = false;}
+    }
+    // CALCULATE THE STATISTICS
+    statistics(pres, does_print);
+  }
+}
+
+/*=====================================================================================================================*/
 
 //////////////////////////////
 ////  OPEN & CLOSE FILES  ////
@@ -1006,6 +1089,47 @@ void duplication(int i,int prev, bool from) {
   MutCount += tempMutCount;
 }
 
+/* ================================================================================ */
+// WHC: new duplication_2() for phaseIV()
+
+void duplication_2(int i,int prev, bool from) {
+  int k;
+  int tempMutCount = 0;
+  int adam = i;
+
+  if (from == 0) {
+    if (i % 2 == 0) {
+      adam = i + 1;
+    } else {
+      adam = i - 1;
+    }
+  }
+  // WHC: pointer[][] contains pointers to table[]; and table[] contains struct chrom;
+  // WHC: so pointer[][][i] represents ith chromes, because array name == pointer
+  if (pointer[prev][i][0].b == 3) {
+    pointer[prev][i][0].b = 5;
+  }
+
+  // WHC: also, will assume dup_2 comes from ori now... may need to re-consider
+  
+  pointer[prev][i][0].mpb[4] = pointer[prev][adam][0].mpb[0];
+  for (k = 0; k < pointer[prev][adam][0].mpb[0]; k++) {
+    pointer[prev][i][0].mutation[4][k] = pointer[prev][adam][0].mutation[0][k];
+  }
+
+  // WHC: need to understand this before changing; changed, need double-check
+  for (k = 0; k < MutCount; k++) {
+    if (muttable[k].block == 0) {
+      muttable[MutCount + tempMutCount].position = muttable[k].position;
+      muttable[MutCount + tempMutCount].block = 4;
+      tempMutCount++;
+    }
+  }
+  MutCount += tempMutCount;
+}
+
+// WHC: new duplication_2() for phaseIV()
+/* ================================================================================ */
 
 void mutation(float probability, int i, int pres) {
   int j, k, position, val, mutEvents;
