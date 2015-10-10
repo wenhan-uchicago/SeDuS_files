@@ -680,7 +680,7 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
   
   //  for (era = (int) BURNIN / PROMETHEUS; era < (int) (BURNIN + STRUCTURED) / PROMETHEUS; era++) {
   for (era = (int) TIMELENGTH / PROMETHEUS; era < (int) (TIMELENGTH + STRUCTURED_2) / PROMETHEUS; era++) {
-    cout << "TIMELENGTH = " << TIMELENGTH << " " << "TIMELENGTH + STRUCTURED_2 = " << TIMELENGTH + STRUCTURED_2 << '\n';
+    // WHC: cout << "TIMELENGTH = " << TIMELENGTH << " " << "TIMELENGTH + STRUCTURED_2 = " << TIMELENGTH + STRUCTURED_2 << '\n';
     // GENEALOGY (with recombination and taking into account that duplicated chr have duplicated ancestor)
     //    genealogy(rho * BLOCKLENGTH, 1, (2 * k * BLOCKLENGTH));
     genealogy_2(rho * BLOCKLENGTH, 1, (3 * k * BLOCKLENGTH));
@@ -715,6 +715,19 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
     }
     // CALCULATE THE STATISTICS
     statistics(pres, does_print);
+
+    /* ================================================================ */
+    /* WHC: just to see how many chroms are carrying dup_2 */
+    int counting_dup_2 = 0;
+    for (int temp = 0; temp < 2 * N; ++temp) {
+      if (pointer[pres][temp]->b == 5) {
+	++counting_dup_2;
+      }
+    }
+    cout << "The number of chroms that are carrying dup_2 = ", counting_dup_2 << '\n';
+    /* WHC: the end of counting
+    /* ================================================================ */
+    
   }
 }
 
