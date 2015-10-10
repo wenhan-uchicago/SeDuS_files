@@ -6,3 +6,8 @@ Oct 9, 2015, again
 
 previous problem was caused by mistakes on having SAMPLE > N, fixed;
 however, float * SiteFrequencySpectrumPrint() seems to return a *local* array; maybe this is causing problem?
+
+Oct 10, 2015
+
+Still not figured out why this happens when N = 10, SAMPLE = 5, PROMETHEUS = 10; however, everything works well when N = 100, SAMPLE = 50
+Just have no idea at all
