@@ -258,6 +258,7 @@ void open_files(); // Opening files
 void close_files(); // Closing files
 
 void genealogy(float, int, float); // rho, 0/1(non structured or structured) //// Filling genealogy matrices in each PROMETHEUS
+void genealogy_2(float, int, float)
 void parentpicking(int[maxNumOfHS], int[maxNumOfHS], float[maxNumOfHS], int, int, int,int,int); // crossoverBegin, crossoverEnd //// Create new generation from previous one (with recombination)
 
 void duplication(int,int,bool); // Create Duplication for eva (first duplicated chromosome)
@@ -1202,7 +1203,7 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
 	  (pointer[prev][father]->mpb[2] == 0) && (pointer[prev][father]->mpb[3] == 0) &&
 	  (pointer[prev][father]->mpb[4] == 0) && (pointer[prev][partner]->mpb[0] == 0) &&
 	  (pointer[prev][partner]->mpb[1] == 0) && (pointer[prev][partner]->mpb[2] == 0) &&
-	  (pointer[prev][partner->mpb[3] == 0]) && (pointer[prev][partner]->mpb[3] == 0)) {
+	  (pointer[prev][partner]->mpb[3] == 0]) && (pointer[prev][partner]->mpb[3] == 0)) {
 	for (j = 0; j < chr->b; j++) {
 	  chr->mpb[j] = 0;
 	}
