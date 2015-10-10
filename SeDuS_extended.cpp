@@ -1018,13 +1018,16 @@ void genealogy_2(float probability, int strornot, float IGCprobability) { // Gen
 	// WHC: as present chroms which will have dup have been chosen before, this is for randomly picking a father
 	// WHC: remember, i = 0, 1, 2, ...
 	int val=(int) (rand()%(fixationTrajectory[trajectime-1]));
-	ancestry[duplicontent[present][i]][tt] = duplicontent[previous][val];
+	
+	// WHC: FOUND a MISTAKE! should be duplicatent_2[]!!
+	// ancestry[duplicontent[present][i]][tt] = duplicontent[previous][val];
+	ancestry[duplicontent_2[present][i]][tt] = duplicontent_2[previous][val];
       }
       // For all the chr that have not to have the duplication at this time...
       for(int i=fixationTrajectory[trajectime] ; i < 2*N ; i++){
 	// Choose a father randomly (from the previous non-duplicated population)
 	int val = (int) (rand()%(2*N-fixationTrajectory[trajectime-1])) + fixationTrajectory[trajectime-1];
-	ancestry[duplicontent[present][i]][tt] = duplicontent[previous][val];
+	ancestry[duplicontent_2[present][i]][tt] = duplicontent_2[previous][val];
       }
       if (previous==1) {previous=0;  present=1;} else {previous=1;  present=0;}
     }
@@ -1337,7 +1340,7 @@ void duplication_2(int i,int prev, bool from) {
   }
   // WHC: pointer[][] contains pointers to table[]; and table[] contains struct chrom;
   // WHC: so pointer[][][i] represents ith chromes, because array name == pointer
-  if (pointer[prev][i][0].b == 3) {
+  if (pointer[prev][i]->b == 3) {
     pointer[prev][i][0].b = 5;
   }
 
