@@ -59,7 +59,10 @@ using namespace std;
 ////////////////////////////////////////
 
 int N = 100; // Population size
+
+// WHC: PROMETHEUS should be an even number
 int PROMETHEUS = 100; // Number of generations for each genealogy
+
 int SUPERTIME = 1; // Number of simulations per execution
 int BLOCKLENGTH = 10000; // Block length
 int SAMPLE = 5; // Sample size
@@ -77,13 +80,14 @@ int ori_index = 0, single_1 = 1, dup_1 = 2, single_copy_2 = 3, dup_2 = 4;
 #define numofsamples 1 // Number of different samples taken per run
 
 // int BIGTIME = 70;  // BIGTIME * N is the total number of generations simulated per run
-int BIGTIME = 200;  // WHC: BIGTIME * N is the total number of generations simulated per run
-int BURNINTIME = 30; // BURNINTIME * N is the number of generations in Phase I
+int BIGTIME = 70;  // WHC: BIGTIME * N is the total number of generations simulated per run, UNTIL phaseIV()
+int BURNINTIME = 20; // BURNINTIME * N is the number of generations in Phase I
 // int STRUCTUREDTIME = 20; // STRUCTUREDTIME * N is the number of generations in Phase II
 int STRUCTUREDTIME = 30; // WHC: STRUCTUREDTIME * N is the number of generations in Phase II
 
 // WHC: STRUCTURED_2_TIME * N is the number of generations in Phase IV
 int STRUCTURED_2_TIME = 30;
+
 
 int TIMELENGTH = (int) BIGTIME * N; // Total number of generations (including all phases)
 int BURNIN = (int) BURNINTIME * N; // Number of generations in phase I
@@ -257,6 +261,10 @@ void genealogy(float, int, float); // rho, 0/1(non structured or structured) ///
 void parentpicking(int[maxNumOfHS], int[maxNumOfHS], float[maxNumOfHS], int, int, int,int,int); // crossoverBegin, crossoverEnd //// Create new generation from previous one (with recombination)
 
 void duplication(int,int,bool); // Create Duplication for eva (first duplicated chromosome)
+
+// WHC: copy of duplication() for phaseIV()
+void duplication_2(int,int,bool); // Create Duplication for eva (first duplicated chromosome)
+
 void mutation(float, int, int); // For each fertile chromosome decide if a mutation happens and execute it if necessary
 
 // WHC: will use pointer donorRatio instead of float
@@ -662,14 +670,20 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
   // ==========================================================================================================================
   // WHC: stoped here
   
-  for (era = (int) BURNIN / PROMETHEUS; era < (int) (BURNIN + STRUCTURED) / PROMETHEUS; era++) {
+  //  for (era = (int) BURNIN / PROMETHEUS; era < (int) (BURNIN + STRUCTURED) / PROMETHEUS; era++) {
+  for (era = (int) TIMELENGTH / PROMETHEUS; era < (int) (TIMELENGTH + STRUCTURED_2) / PROMETHEUS; era++) {
+    cout << "TIMELENGTH = " << TIMELENGTH << " " << "TIMELENGTH + STRUCTURED_2 = " << TIMELENGTH + STRUCTURED_2 << '\n';
     // GENEALOGY (with recombination and taking into account that duplicated chr have duplicated ancestor)
-    genealogy(rho * BLOCKLENGTH, 1, (2 * k * BLOCKLENGTH));
+    //    genealogy(rho * BLOCKLENGTH, 1, (2 * k * BLOCKLENGTH));
+    genealogy_2(rho * BLOCKLENGTH, 1, (3 * k * BLOCKLENGTH));
     int prom=-1;
     prev = 0;
     pres = 1;
     bool skip = false;
+
+    // WHC: I think it is good until here
     for (std::vector<fertility_info>::iterator it=fertility_list.begin(); it!=fertility_list.end(); ++it){
+      // as long as PROMETHEUS is an even number, always end up being prov = 0, pres = 1
       int i = (*it).x;
       int t = (*it).y;
       if(prom!=t){
@@ -938,6 +952,194 @@ void genealogy(float probability, int strornot, float IGCprobability) { // Gener
   std::stable_sort (fertility_list.begin(), fertility_list.end(), sorty);
 		
 }
+
+/* ======================================================================================================================= */
+// WHC: genealogy_2() for phaseIV()
+
+void genealogy_2(float probability, int strornot, float IGCprobability) { // Generates the genealogy based on the FixationTrajectory (with RECOMBINATION)
+  // Determine recombination processes (with probability "probability")
+  for (int tt=0 ; tt < PROMETHEUS ; tt++){
+    for (int i=0 ; i < 2*N ; i++){
+      recombimatrix[i][tt] = false;
+      IGCmatrix[i][tt] = false;
+    }
+  }
+
+  // STRUCTURED GENEALOGY (the population is subdivided in 2: one that carries the duplication, built according to trajectime, and the other not carrying the duplication
+  
+  // WHC: this strornot == 1 means in phaseIV()
+  if (strornot == 1){
+    //cout << "entra a strornot\n";
+    // Pick a parent from the corresponding duplicated/non-duplicated population
+    int present=0;
+    
+    // WHC: previous = 1 is last present = 1; now becomes previous generation
+    int previous=1;
+    for (int tt=0 ; tt < PROMETHEUS ; tt++){
+      // trajectime is the time in which we are in fixationTrajectory[] array (used to know the number of chr that carry the dup at each time)
+      int trajectime = PROMETHEUS*(era-((int)TIMELENGTH/PROMETHEUS))+tt+1;
+      // Randomly mix all the chromosomes of the present generation
+      // WHC: as the next step (choosing a father with dup ramdomly always pick the first several chroms, this step is for randomly picking chroms for having dup
+      
+      for(int i=0 ; i < 2*N ; i++){
+	int val = (int) (rand()%(2*N));
+	int temp = duplicontent_2[present][i];
+	// Duplicontent is an array that indicates which chr carry the duplication (with present and previous lines)
+	duplicontent_2[present][i] = duplicontent_2[present][val];
+	duplicontent_2[present][val] = temp;
+      }
+      // For all the chr that have to have the duplication at this time...
+
+      // WHC: need to generate a fixationTrajectory_2[] for phaseIV() ?
+      for(int i=0 ; i < fixationTrajectory[trajectime] ; i++){
+	// Choose a father randomly (from the previous duplicated population)
+	// WHC: as present chroms which will have dup have been chosen before, this is for randomly picking a father
+	// WHC: remember, i = 0, 1, 2, ...
+	int val=(int) (rand()%(fixationTrajectory[trajectime-1]));
+	ancestry[duplicontent[present][i]][tt] = duplicontent[previous][val];
+      }
+      // For all the chr that have not to have the duplication at this time...
+      for(int i=fixationTrajectory[trajectime] ; i < 2*N ; i++){
+	// Choose a father randomly (from the previous non-duplicated population)
+	int val = (int) (rand()%(2*N-fixationTrajectory[trajectime-1])) + fixationTrajectory[trajectime-1];
+	ancestry[duplicontent[present][i]][tt] = duplicontent[previous][val];
+      }
+      if (previous==1) {previous=0;  present=1;} else {previous=1;  present=0;}
+    }
+  }
+  // NORMAL GENEALOGY (no 2 populations Duplicated/NoDuplicated)
+  else if (strornot == 0){
+    for (int tt=0 ; tt < PROMETHEUS ; tt++){
+      for (int i=0 ; i < 2*N ; i++){
+	int val=(int) (rand()%(2*N));
+	ancestry[i][tt] = val; //   WITHOUT presLOSS OF GENERALITY AN INDIV. CAN MATE WITH HIMSELF
+      }
+    }
+  }
+  // TRACING BACK THE GENEALOGY AND BUILDING FERTILITY MATRIX
+  fertility = fertility_ini;
+  fertility_list.clear();
+  for (int i=0 ; i < 2*N ; i++){
+    fertility_info fi;
+    fi.x = i;
+    fi.y = (PROMETHEUS-1);
+    fertility_list.push_back(fi);
+  }
+  for (int tt=PROMETHEUS-1 ; tt > 0 ; tt--){
+    for (int i=0 ; i < 2*N ; i++){
+      if (fertility[i][tt] == true){
+	if(fertility[ancestry[i][tt]][tt-1]==false){
+	  fertility_info fi;
+	  fi.x=(ancestry[i][tt]);
+	  fi.y=(tt-1);
+	  fertility_list.push_back(fi);
+	}
+	fertility[ancestry[i][tt]][tt-1] = true;
+	float p = rand() / ((float) RAND_MAX + 1);// Determine recombination processes (with probability "probability")
+	if (p < probability){
+	  recombimatrix[i][tt] = true;
+	  if(ancestry[i][tt]%2==0) {
+	    if(fertility[ancestry[i][tt]+1][tt-1]==false){
+	      fertility_info fi;
+	      fi.x=(ancestry[i][tt]+1);
+	      fi.y=(tt-1);
+	      fertility_list.push_back(fi);
+	    }
+	    fertility[ancestry[i][tt]+1][tt-1]=true;
+	  }
+	  else {
+	    if(fertility[ancestry[i][tt]-1][tt-1]==false){
+	      fertility_info fi;
+	      fi.x=(ancestry[i][tt]-1);
+	      fi.y=(tt-1);
+	      fertility_list.push_back(fi);
+	    }
+	    fertility[ancestry[i][tt]-1][tt-1]=true;
+	  }
+	}
+			
+	if((sameDifIGC!=1)){
+	  p = rand() / ((float) RAND_MAX + 1);// Determine IGC processes (with probability "IGCprobability"); WHC: probabily error, should be "Determin IGC processes"; also, it is determining IGC process between 2 chroms, instead of on itself
+
+	  // WHC: the (1 - sameDifIGC), is due to the fact there is another p < (2 * probability * BLOCKLENGTH * sameDifIGC) in void conversion(); this one here is to only test whether IGC comes from different chromosomes, if so, need to record its genealogy; if not, then it either doesn't have IGC, or it has IGC within the same chromosome, which doesn't require genealogy for its partner chromosome
+	  
+	  if (p < (IGCprobability * (1-sameDifIGC))){
+	    IGCmatrix[i][tt] = true;
+	    if(i%2==0) {
+	      // WHC: here, fertility[i+1][tt] will be true, which means [i+1] will be tested for IGC & recombination
+	      // WHC: however, if i%2 == 1, which means its partner [i-1] may have fertility[i-1][tt] == false, which means
+	      // WHC: it is NOT tested for recombination
+	      // WHC: that is why the else {} tests recombination for it
+	      if(fertility[i+1][tt]==false){
+		fertility_info fi;
+		fi.x=(i+1);
+		fi.y=(tt);
+		fertility_list.push_back(fi);
+	      }
+	      fertility[i+1][tt]=true;
+	    }else{
+	      // WHC: same algorithm as in void phaseII() -- scan from 1st chrom to 2*N th chrom; if i%2 == 0, then record (i+1)'s (its partner that hasn't been scanned yet) genealogy; if i%2 != 0, which means its previous partner is already scanned
+	      
+	      if(fertility[i-1][tt]==false){
+		fertility_info fi;
+		fi.x=(i-1);
+		fi.y=(tt);
+		fertility_list.push_back(fi);
+							
+		fertility[i-1][tt]=true;
+								
+		if(fertility[ancestry[i-1][tt]][tt-1]==false){
+		  fertility_info fi;
+		  fi.x=(ancestry[i-1][tt]);
+		  fi.y=(tt-1);
+		  fertility_list.push_back(fi);
+		}
+		fertility[ancestry[i-1][tt]][tt-1] = true;
+							 
+		p = rand() / ((float) RAND_MAX + 1);// Determine recombination processes (with probability "probability")
+		if (p < probability){
+		  recombimatrix[i-1][tt] = true;
+		  if(ancestry[i-1][tt]%2==0) {
+		    if(fertility[ancestry[i-1][tt]+1][tt-1]==false){
+		      fertility_info fi;
+		      fi.x=(ancestry[i-1][tt]+1);
+		      fi.y=(tt-1);
+		      fertility_list.push_back(fi);
+		    }
+		    fertility[ancestry[i-1][tt]+1][tt-1]=true;
+		  }else {
+		    if(fertility[ancestry[i-1][tt]-1][tt-1]==false){
+		      fertility_info fi;
+		      fi.x=(ancestry[i-1][tt]-1);
+		      fi.y=(tt-1);
+		      fertility_list.push_back(fi);
+		    }
+		    fertility[ancestry[i-1][tt]-1][tt-1]=true;
+		  }
+		}
+		
+		// WHC: this p = rand() here, is due to, if i % 2 == 0, then (i+1) will be added to fertility_list
+		// WHC: which means that it will NOT be tested 
+		
+		p = rand() / ((float) RAND_MAX + 1);// Determine recombination processes (with probability "probability")
+		if (p < (IGCprobability * (1-sameDifIGC))){
+		  IGCmatrix[i-1][tt] = true;
+		}
+	      }
+	    }
+	  }
+	}	
+      }
+    }
+  }
+	
+  std::stable_sort (fertility_list.begin(), fertility_list.end(), sortx);
+  std::stable_sort (fertility_list.begin(), fertility_list.end(), sorty);
+		
+}
+
+// WHC: genealogy_2() for phaseIV()
+/* ======================================================================================================================= */
 
 ////////////////////////////////////////////////////////////
 ////  PARENTPICKING, DUPLICATION, MUTATION, CONVERSION  ////
