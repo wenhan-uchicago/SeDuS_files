@@ -58,11 +58,11 @@ using namespace std;
 //// SIMULATION PRINCIPAL VARIABLES ////
 ////////////////////////////////////////
 
-int N = 1000; // Population size
-int PROMETHEUS = 1000; // Number of generations for each genealogy
-int SUPERTIME = 10; // Number of simulations per execution
+int N = 100; // Population size
+int PROMETHEUS = 100; // Number of generations for each genealogy
+int SUPERTIME = 1; // Number of simulations per execution
 int BLOCKLENGTH = 10000; // Block length
-int SAMPLE = 50; // Sample size
+int SAMPLE = 5; // Sample size
 #define MUTTABLESIZE 1000000 // Maximum number of mutations (size of muttable)
 
 // #define B 3 // Maximum number of blocks per chromosome
