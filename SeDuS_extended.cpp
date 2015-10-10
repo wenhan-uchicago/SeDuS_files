@@ -691,6 +691,7 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
       }
       prom = t;
       if(skip == false){
+	// WHC: I think parentpicking() works for phaseIV(); same is true for mutation()
 	parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);// PARENT PICKING (with recombination)
 	mutation(mu, i,pres);// MUTATION and CONVERSION (for each fertile chromosome)
 	if(IGCmatrix[i][t]==true && (i%2 == 0 )){
@@ -1193,9 +1194,15 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
     }
     if (((minblock * BLOCKLENGTH) >= end) && ((minblock * BLOCKLENGTH) > beg)) {
       // If neither father and partner have mutations in any block
-      if ((pointer[prev][father]->mpb[0] == 0) && (pointer[prev][father]->mpb[1] == 0) &&
+      /*      if ((pointer[prev][father]->mpb[0] == 0) && (pointer[prev][father]->mpb[1] == 0) &&
 	  (pointer[prev][father]->mpb[2] == 0) && (pointer[prev][partner]->mpb[0] == 0) &&
 	  (pointer[prev][partner]->mpb[1] == 0) && (pointer[prev][partner]->mpb[2] == 0)) {
+      */
+      if ((pointer[prev][father]->mpb[0] == 0) && (pointer[prev][father]->mpb[1] == 0) &&
+	  (pointer[prev][father]->mpb[2] == 0) && (pointer[prev][father]->mpb[3] == 0) &&
+	  (pointer[prev][father]->mpb[4] == 0) && (pointer[prev][partner]->mpb[0] == 0) &&
+	  (pointer[prev][partner]->mpb[1] == 0) && (pointer[prev][partner]->mpb[2] == 0) &&
+	  (pointer[prev][partner->mpb[3] == 0]) && (pointer[prev][partner]->mpb[3] == 0)) {
 	for (j = 0; j < chr->b; j++) {
 	  chr->mpb[j] = 0;
 	}
@@ -1207,6 +1214,7 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
 	junction += beg;
 	junctionBlock = (int) (junction / BLOCKLENGTH); // block where junction fell
 	//	   cout << junctionBlock << " ";
+	// WHC: is the number of mutations before junction point
 	valr0 = location(junction - junctionBlock*BLOCKLENGTH, prev, partner, junctionBlock); // junction location in the block "junctionBlock" of partner
 	vald0 = location(junction - junctionBlock*BLOCKLENGTH, prev, father, junctionBlock); // junction location in the block "junctionBlock" of father
 
@@ -1381,14 +1389,41 @@ void mutation(float probability, int i, int pres) {
 
       // WHC: I think this step is for making sure new mutation could only arise on non-polymorphic positions, on both blocks
       // IF MUTATION APPEARS IN BLOCK 0 OR 2, COPY THE MUTATION TO THE OTHER BLOCK
-      if (j == 0 && duFreq == true) {
+      // if (j == 0 && duFreq == true) {
+      if (j == 0 && duFreq == true && duFreq_2 == false) {
+	// WHC: in phaseII() but not in phaseIV()
 	muttable[MutCount].block = 2;
 	muttable[MutCount].position = muttable[MutCount - 1].position;
 	MutCount++;
+      } else if (j == 0 && duFreq_2 == true) {
+	// WHC: if is in phaseIV(), then should copy information from 0 to 2 and 4
+	// WHC: copy to dup_1
+	muttable[MutCount].block = 2;
+	muttable[MutCount].position = muttable[MutCount - 1].position;
+	MutCount++;
+
+	// WHC: copy to dup_2
+	muttable[MutCount].block = 4;
+	muttable[MutCount].position = muttable[MutCount - 2].position;
+	MutCount++;
       }
-      if (j == 2) {
+      
+      //      if (j == 2) {
+      if (j == 2 && duFreq_2 == false) {
+	// WHC: in phaseII() but not in phaseIV()
 	muttable[MutCount].block = 0;
 	muttable[MutCount].position = muttable[MutCount - 1].position;
+	MutCount++;
+      } else if (j == 2 && duFreq_2 == true) {
+	// WHC: in phaseIV()
+	// WHC: copy to dup_1
+	muttable[MutCount].block = 0;
+	muttable[MutCount].position = muttable[MutCount - 1].position;
+	MutCount++;
+
+	// WHC: copy to dup_2
+	muttable[MutCount].block = 4;
+	muttable[MutCount].position = muttable[MutCount - 2].position;
 	MutCount++;
       }
     }
@@ -1438,7 +1473,7 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	block_1 = ori_index;
 	block_2 = dup_1;
 	donorRatio = p_donorRatio[0][2];
-      } else if (chr1->b == 5 || chr2->b == 5) {	// WHC: could pick ori, dup_1, dup_2 blocks
+      } else if (chr1->b == 5 || chr2->b == 5) {	// WHC: could pick ori, dup_1, dup_2 blocks; means already in phaseIV(), at least 3 blocks for any chrom
 	// WHC: randomly generate 0, 1, 2
 	// WHC: which correspond to ori&dup_1, ori&dup_2 and dup_1&dup_2 pairs
 	int which_pair = rand() % 3;
@@ -1487,7 +1522,7 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	if (block_2 == dup_2) {	// only chr2 can be donor
 	  chrDonor = partner;
 	  chrReceptor = i;
-	} else {		// randomly chosen
+	} else {		// randomly chosen; WHC: as block_2 = dup_1... (WHC: wise to make block_2 > block_1)
 	  p = rand() / ((float) RAND_MAX + 1); // WHC: randomly choose from which chromosome to which
 	  if (p < 0.5) {
 	    chrDonor = i;
@@ -1516,7 +1551,7 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
       } else if (chr2->b == 2) {
 	// WHC: may be a source of errors, careful
 	//	if(donor == 2){
-	if (donor == dup_1 || donor == dup_2) { // this chrom does not have duplications
+	if (donor == dup_1 || donor == dup_2) { // WHC: this chrom does not have duplications
 	  chrDonor = i;
 	  chrReceptor = partner;
 	} else {
