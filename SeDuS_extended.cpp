@@ -501,6 +501,12 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       phaseIII(kappa);
       /* END PHASE III */
 
+      /* PHASE IV: STRUCTURED_2 TRAJECTORY */
+      // WHC: for generating dup_2
+      cout << "PHASE IV" << '\n';
+      phaseIV(kappa);
+      /* END PHASE IV */
+
       for (j = 0; j < B+2; j++) {
 	for (o = 0; o < numofsamples; o++) {samplefile[j][o][0] << "\n";samplefile[j][o][1] << "\n";}
       }
