@@ -19,3 +19,7 @@ Wired thing is, it happens sometimes, but not always... wired..
 Oct 10, 2015
 
 The problem with DivergenceForAll(), should be caused by a single mutation saved multiple times in mutation[block][k], so that mutation[block][i] == mutation[block][i+1] etc. I think.
+
+================
+
+Before modifying DupliFreq(), dup_1 will be 0 for SFS; this is due to SiteFrequencySpectrumPrint() will return 0 if... After modifying that, seems to be working. BUT, definately need to spend more time on SiteFrequencySpectrumPrint().
