@@ -2345,15 +2345,24 @@ void DivergenceForAll(int blockA, int blockB, int h) {
     cout << "ERROR en divergence for all\n" << mutSharedAB << " " << mutSharedABComp << "\n\n";
     //WHC: test if two pointer[][]->mutation[k or i] are the same
     for (int i = 0; i < 2 * N; ++i) {
-      cout << "Block A:\n":
-      for (int k = 0; k < pointer[h][i]->mpb[blockA]; ++k) {
-	cout << pointer[h][i]->mutation[blockA][k] << " ";
-      }
-      cout << '\n';
-      cout << "Block B\n";
-      for (int k = 0; k < pointer[h][i]->mpb[blockB]; ++k) {
-	cout << pointer[h][i]->mutation[blockB][k] << " ";
-      }
+      cout << "Block A (first 2):\n";
+      cout << pointer[h][i]->mutation[blockA][0] << " " << pointer[h][i]->mutation[blockA][1] << '\n';
+      //      for (int k = 0; k < pointer[h][i]->mpb[blockA]; ++k) {
+      //	cout << pointer[h][i]->mutation[blockA][k] << " ";
+      //      }
+      cout << "Block B (first 2):\n";
+      cout << pointer[h][i]->mutation[blockB][0] << " " << pointer[h][i]->mutation[blockB][1] << '\n';
+
+      int k = pointer[h][i]->mpb[blockA] - 1;
+      cout << "Block A (last 2):\n";
+      cout << pointer[h][i]->mutation[blockA][k - 1] << " " << pointer[h][i]->mutation[blockA][k] << '\n';
+
+      //      cout << '\n';
+      cout << "Block B (last 2:)\n";
+
+      k = pointer[h][i]->mpb[blockB] - 1;
+      cout << pointer[h][i]->mutation[blockB][k - 1] << " " << pointer[h][i]->mutation[blockB][k] << '\n';
+
       cout << '\n';
 
     }
