@@ -1776,7 +1776,7 @@ void FSL(int hh) {
     // SET MULTIHIT TO FALSE FOR MUTATIONS THAT HAVE BEEN LOST
 
     // WHC: this -9 labels that this has been added to tempMutCount[], so that it won't be added twice
-    if (muttable[m].block == -9) {
+    if (muttable[m].block == -9 || muttable[m].block == 3) {
       continue;
     }
 
@@ -1896,7 +1896,7 @@ void FSL(int hh) {
 	} else if (muttable[m].block == 4) {
 	  otherm_1 = SearchMutation(0, muttable[m].position, MutCount);
 	  otherm_2 = SearchMutation(2, muttable[m].position, MutCount);
-	} else if (mutcount[m].block == 3) {
+	} else if (muttable[m].block == 3) {
 	  // WHC: we just don't care about what's going on in 3
 	  
 	} else {
