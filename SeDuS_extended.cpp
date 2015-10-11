@@ -1740,8 +1740,12 @@ void statistics(int prev, bool does_print) {
   int j, o;
   float * resultsSample;
 
+  // WHC: FSL() will delete fixed/lost mutations
+  // WHC: and make a new muttable[]
+  
   FSL(prev); // Creating the summary vector fixedLostForAll
   // INFORMATION RECOVERED FROM SAMPLES
+  
   for (o = 0; o < numofsamples; o++) {
     SamplingIndividuals(sampleN[o]);
 
@@ -1892,6 +1896,9 @@ void FSL(int hh) {
 	} else if (muttable[m].block == 4) {
 	  otherm_1 = SearchMutation(0, muttable[m].position, MutCount);
 	  otherm_2 = SearchMutation(2, muttable[m].position, MutCount);
+	} else if (mutcount[m].block == 3) {
+	  // WHC: we just don't care about what's going on in 3
+	  
 	} else {
 	  cout << "hi, something wrong in FSL() when considering phaseIV().\n";
 	  exit(0);
