@@ -2273,6 +2273,13 @@ void DivergenceForAll(int blockA, int blockB, int h) {
   }
   if (mutSharedAB != mutSharedABComp) {
     cout << "ERROR en divergence for all\n" << mutSharedAB << " " << mutSharedABComp << "\n\n";
+    // WHC: test if two pointer[][]->mutation[k or i] are the same
+    for (int i = 0; i < 2 * N; ++i) {
+      for (int k = 0; k < pointer[h][i]->mpb[blockA]; ++k) {
+	cout << pointer[h][i]->mutation[blockA][k] << " ";
+      }
+      cout << '\n';
+    }
   }
 }
 
