@@ -2132,7 +2132,7 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
   if(block == 2){
     //duplicationFreq = DupliFreq(prev, 2, n);
     duplicationFreq = DupliFreq(h, 2, n);
-    s = (int) duplicationFreq/2;
+    s = (int) duplicationFreq/2; // WHC: why divided by 2??
   } else if (block == 4) {	// WHC: newly added
     duplicationFreq = DupliFreq(h, 4, n);
     s = (int) duplicationFreq / 2;
@@ -2320,7 +2320,7 @@ int DupliFreq(int h, int block, int n) {
     for (i = 0; i < 2 * n; i++) {
       //      if (pointer[h][sample[i]]->b == (block + 1)) {
       // WHC: same reason as previous
-      if (pointer[h][i]->b >= (block + 1)) {
+      if (pointer[h][sample[i]]->b >= (block + 1)) {
 	quantity++;
       }
     }
