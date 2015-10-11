@@ -1760,6 +1760,7 @@ void statistics(int prev, bool does_print) {
 ////  FSL (FIXED-SEGREGATING-LOST): EXTRACTS INFO FROM MUTTABLE  ////
 /////////////////////////////////////////////////////////////////////
 
+// WHC: FSL() is changed to accomodate phaseIV()
 void FSL(int hh) {
   int m, otherm=0, mm;
 
@@ -1769,6 +1770,12 @@ void FSL(int hh) {
   }
   for (m = 0, mm = 0; m < MutCount; m++) {
     // SET MULTIHIT TO FALSE FOR MUTATIONS THAT HAVE BEEN LOST
+
+    // WHC: this -9 labels that this has been added to tempMutCount[], so that it won't be added twice
+    if (muttable[m].block == -9) {
+      continue;
+    }
+
     if (muttable[m].frequency == 0 && muttable[m].block == 1) {
       multihit[muttable[m].position] = false;
     }
@@ -1783,6 +1790,7 @@ void FSL(int hh) {
 	temporalmuttable[mm].frequency = muttable[m].frequency;
 	temporalmuttable[mm].position = muttable[m].position;
 	mm++;
+
       }
       // FIXED
       if (muttable[m].frequency == 1) {
@@ -1790,8 +1798,10 @@ void FSL(int hh) {
       }
 
     }// IF THE MUTATION IS IN EITHER BLOCK 0 0R 2
+     // WHC: OR BLOCK 4
     else {
       // IF THE DUPLICATION HAS NOT YET OCCURRED, TREATS BLOCK 0 AS SINGLE-COPY
+      // WHC: if duFreq = false, then duFreq_2 = false must be true
       if (duFreq == false) {
 	// SEGREGATING
 	if (muttable[m].frequency > 0 && muttable[m].frequency < 1) {
@@ -1804,8 +1814,10 @@ void FSL(int hh) {
 	if (muttable[m].frequency == 1) {
 	  EraseFixedMutations(muttable[m].position, muttable[m].block, hh);
 	}
-      }// IF THE DUPLICATION HAS OCCURRED
-      else {
+      }  else if ((duFreq == true) && (duFreq_2 == false)) {
+        // IF THE DUPLICATION HAS OCCURRED
+	// WHC: but before phaseIV()
+	
 	// CHECKS THE BLOCK IN WHICH IT HAS OCCURRED
 	// AND LOOKS FOR THE POSITION OF THE MUTATION IN MUTTABLE FOR THE OTHER BLOCK
 	if (muttable[m].block == 2) {
@@ -1832,6 +1844,11 @@ void FSL(int hh) {
 	if (muttable[m].frequency == 1) {
 	  // IF THE DUPLICATION IS FIXED IN THE OTHER BLOCK
 	  if (muttable[otherm].frequency == 1) {
+	    // WHC: why don't erase mutaitons in muttable[otherm]???
+	    // WHC: because otherm will go through this later?
+	    // WHC: and when going through mutation[otherm], because its partner is erased, won't enter this block(?)
+	    // WHC: I think it should erase mutation[otherm] too!
+	    // WHC: NO! Do not need to; because mutation[m].frequency will NOT change!
 	    EraseFixedMutations(muttable[m].position, muttable[m].block, hh);
 	  }// IF THE DUPLICATION IS SEGREGATING OR NOT PRESENT IN THE OTHER BLOCK
 	  else {
@@ -1841,6 +1858,7 @@ void FSL(int hh) {
 	    mm++;
 	    // IN CASE THE MUTATION IS NOT PRESENT IN THE OTHER BLOCK, IT IS COPIED TO MUTTABLE ANYWAY
 	    if (muttable[otherm].frequency == 0) {
+	      // WHC: because there is NO if (muttable[m].frequency == 0) {} clause, this copy here won't cause copying twice
 	      temporalmuttable[mm].block = muttable[otherm].block;
 	      temporalmuttable[mm].frequency = muttable[otherm].frequency;
 	      temporalmuttable[mm].position = muttable[otherm].position;
@@ -1854,6 +1872,176 @@ void FSL(int hh) {
 	    multihit[muttable[m].position] = false;
 	  }
 	}
+      } else if (duFreq_2 == true) {
+	int otherm_1 = 0, otherm_2 = 0;
+
+	/* ================================================================ */
+	/* WHC: this clause is a modificate of if (duFreq == true && duFreq_2 == false) */
+	
+        // IF THE SECONDE DUPLICATION HAS OCCURRED
+	// WHC: within or after phaseIV() (probabily will write one specific for phaseVI()...
+	
+	// CHECKS THE BLOCK IN WHICH IT HAS OCCURRED
+	// AND LOOKS FOR THE POSITION OF THE MUTATION IN MUTTABLE FOR THE OTHER BLOCK
+	if (muttable[m].block == 2) {
+	  otherm_1 = SearchMutation(0, muttable[m].position, MutCount);
+	  otherm_2 = SearchMutation(4, muttable[m].position, MutCount);
+	} else if (muttable[m].block == 0) {
+	  otherm_1 = SearchMutation(2, muttable[m].position, MutCount);
+	  otherm_2 = SearchMutation(4, muttable[m].position, MutCount);
+	} else if (muttable[m].block == 4) {
+	  otherm_1 = SearchMutation(0, muttable[m].position, MutCount);
+	  otherm_2 = SearchMutation(2, muttable[m].position, MutCount);
+	} else {
+	  cout << "hi, something wrong in FSL() when considering phaseIV().\n";
+	  exit(0);
+	}
+
+	// SEGREGATING
+	
+	// WHC: consider a senario with frequencies: 1, 0.5, 0 for m, otherm_1, otherm_2 !!!
+	
+	if (muttable[m].frequency > 0 && muttable[m].frequency < 1) {
+	  temporalmuttable[mm].block = muttable[m].block;
+	  temporalmuttable[mm].frequency = muttable[m].frequency;
+	  temporalmuttable[mm].position = muttable[m].position;
+	  mm++;
+
+	  //	  if (muttable[otherm_1].frequency == 0 || muttable[otherm_2].frequency == 0) {
+	  // WHC: consider a senario with frequencies: 1, 0.5, 0 for m, otherm_1, otherm_2 !!!
+	  if (muttable[otherm_1].frequency == 0 && muttable[otherm_1].block != -9) {
+	    temporalmuttable[mm].block = muttable[otherm_1].block;
+	    temporalmuttable[mm].frequency = muttable[otherm_1].frequency;
+	    temporalmuttable[mm].position = muttable[otherm_1].position;
+	    mm++;
+
+	    muttable[otherm_1].block = -9;
+	  }
+
+	  if (muttable[otherm_2].frequency == 0 && muttable[otherm_2].block != -9) {
+	    temporalmuttable[mm].block = muttable[otherm_2].block;
+	    temporalmuttable[mm].frequency = muttable[otherm_2].frequency;
+	    temporalmuttable[mm].position = muttable[otherm_2].position;
+	    mm++;
+
+	    // WHC: a label, so that it will skip at the beginning
+
+	    muttable[otherm_2].block = -9;
+	  }
+
+	  /* WHC: will merge them together, because...
+	  // IN CASE THE MUTATION IS NOT PRESENT IN THE OTHER BLOCK, IT IS COPIED TO MUTTABLE ANYWAY
+	  if (muttable[otherm_1].frequency == 0) {
+	    temporalmuttable[mm].block = muttable[otherm_1].block;
+	    temporalmuttable[mm].frequency = muttable[otherm_1].frequency;
+	    temporalmuttable[mm].position = muttable[otherm_1].position;
+	    mm++;
+
+	    // WHC: a label, so that it will skip at the beginning
+	    muttable[otherm_1].block = -9;
+	  }
+
+	  // WHC: can NOT do this! because it will copy them more than once!!!
+	  // WHC: if 0 < muttable[m] < 1, and 0 < muttable[otherm_1] < 1, and muttable[otherm_2] == 0
+	  // WHC: then, muttable[otherm_2] will be added to temporalmuttable[] TWICE!!!
+
+	  if (muttable[otherm_2].frequency == 0) {
+	    temporalmuttable[mm].block = muttable[otherm_2].block;
+	    temporalmuttable[mm].frequency = muttable[otherm_2].frequency;
+	    temporalmuttable[mm].position = muttable[otherm_2].position;
+	    mm++;
+
+	    // WHC: a label, so that it will skip at the beginning
+	    muttable[otherm_2].block = -9;
+
+	  }
+	  */
+
+	  // WHC: maybe, I could lable the original muttable[otherm_1].block = -9, and skip it using continue clause??
+
+	} else if (muttable[m].frequency == 1) {	// FIXED
+	  // IF THE DUPLICATION IS FIXED IN THE OTHER BLOCK
+	  if ((muttable[otherm_1].frequency == 1) && (muttable[otherm_2].frequency == 1)) {
+	    // WHC: all 3 are fixed
+	    
+	    // WHC: why don't erase mutaitons in muttable[otherm]???
+	    // WHC: because otherm will go through this later?
+	    // WHC: and when going through mutation[otherm], because its partner is erased, won't enter this block(?)
+	    // WHC: I think it should erase mutation[otherm] too!
+	    // WHC: NO! Do not need to; because mutation[m].frequency will NOT change!
+	    
+	    EraseFixedMutations(muttable[m].position, muttable[m].block, hh); // WHC: only erase muttable[m], not muttable[otherm]
+
+	    // WHC: should I change multihit[] = false???
+	    // WHC: NO. EraseFixedMutations() already did that for you
+	    
+	  }// IF THE DUPLICATION IS SEGREGATING OR NOT PRESENT IN THE OTHER BLOCK
+	  else {
+	    temporalmuttable[mm].block = muttable[m].block;
+	    temporalmuttable[mm].frequency = muttable[m].frequency;
+	    temporalmuttable[mm].position = muttable[m].position;
+	    mm++;
+	    // IN CASE THE MUTATION IS NOT PRESENT IN THE OTHER BLOCK, IT IS COPIED TO MUTTABLE ANYWAY
+	    // WHC consider frequency 0.5, 1, 0, so should be && but not || (because 0.5 will be added twice!)
+
+	    /*
+
+	    if (muttable[otherm_1].frequency == 0 && muttable[otherm_2].frequency == 0) {
+	      // WHC: because there is NO if (muttable[m].frequency == 0) {} clause, this copy here won't cause copying twice
+	      temporalmuttable[mm].block = muttable[otherm_1].block;
+	      temporalmuttable[mm].frequency = muttable[otherm_1].frequency;
+	      temporalmuttable[mm].position = muttable[otherm_1].position;
+	      mm++;
+
+	      temporalmuttable[mm].block = muttable[otherm_2].block;
+	      temporalmuttable[mm].frequency = muttable[otherm_2].frequency;
+	      temporalmuttable[mm].position = muttable[otherm_2].position;
+	      mm++;
+
+	      // WHC: a label, so that it will skip at the beginning
+	      muttable[otherm_1].block = -9;
+	      muttable[otherm_2].block = -9;
+
+	    }
+
+	    */
+	    if (muttable[otherm_1].frequency == 0 && muttable[otherm_1].block != -9) {
+	    temporalmuttable[mm].block = muttable[otherm_1].block;
+	    temporalmuttable[mm].frequency = muttable[otherm_1].frequency;
+	    temporalmuttable[mm].position = muttable[otherm_1].position;
+	    mm++;
+
+	    muttable[otherm_1].block = -9;
+	  }
+
+	  if (muttable[otherm_2].frequency == 0 && muttable[otherm_2].block != -9) {
+	    temporalmuttable[mm].block = muttable[otherm_2].block;
+	    temporalmuttable[mm].frequency = muttable[otherm_2].frequency;
+	    temporalmuttable[mm].position = muttable[otherm_2].position;
+	    mm++;
+
+	    // WHC: a label, so that it will skip at the beginning
+
+	    muttable[otherm_2].block = -9;
+	  }
+
+	  
+	  }
+	} else if (muttable[m].frequency == 0) {	// LOST (TO CONSIDER IT LOST IT WOULD HAVE TO BE LOST IN BOTH BLOCKS)
+	  if (muttable[otherm_1].frequency == 0 && muttable[otherm_2].frequency == 0) {
+	    multihit[muttable[m].position] = false;
+	  }
+	} else {
+	  cout << "something is wrong in FSL() here.\n";
+	  exit(0);
+	}
+
+	
+	/* WHC: this clause is a modificate of if (duFreq == true && duFreq_2 == false) */
+	/* ================================================================ */
+      } else {
+	cout << "something is wrong in FSL\n";
+	exit(0);
       }
     }
   }
