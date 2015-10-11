@@ -2084,10 +2084,12 @@ int location(int position, int h, int ind, int j) {// Found the position in the 
   int k = 0;
   c = pointer[h][ind];
   bool found = false;
-  //  while (found == false && k <= c->mpb[j]) {
+  while (found == false && k <= c->mpb[j]) {
   // WHC: I think this is WRONG!!! ANd causes trouble; because it will return k = c->mpb[j], causes an undefined value!!
   // WHC: that's why void DivergenceForAll() could sometimes cause troubles (possibly)
-  while (found == false && k < c->mpb[j]) {
+  //  while (found == false && k < c->mpb[j]) {
+  //  WHC: I don't know, should be careful before changing
+    // WHC: I see; they double checked j < pionter[h][i]->mpb[blockA] in DivergenceForAll(), so that they know
     if (position <= c->mutation[j][k] && k < c->mpb[j]) {
       found = true;
     }
