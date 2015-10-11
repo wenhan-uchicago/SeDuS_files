@@ -23,3 +23,11 @@ The problem with DivergenceForAll(), should be caused by a single mutation saved
 ================
 
 Before modifying DupliFreq(), dup_1 will be 0 for SFS; this is due to SiteFrequencySpectrumPrint() will return 0 if... After modifying that, seems to be working. BUT, definately need to spend more time on SiteFrequencySpectrumPrint().
+
+================
+
+DupliFreq()'s problem is caused by dup_2 (i.e. block 4) having 2 consecutive same mutation positions in pointer[][]->mutation[block][k], meaning pointer[][]->mutation[block][k] == pointer[][]->mutation[block][k+1]. trying to figure out why
+
+================
+
+Probably due to forgetting adding mutational information into block 0 and block 2, in void mutation() when block == 4

@@ -519,7 +519,7 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       phaseV(kappa);
       
       for (j = 0; j < B+2; j++) {
-	for (o = 0; o < numofsamples; o++) {samplefile[j][o][0] << "\n";samplefile[j][o][1] << "\n";}
+      	for (o = 0; o < numofsamples; o++) {samplefile[j][o][0] << "\n";samplefile[j][o][1] << "\n";}
       }
       // cout << "Finished Run" << "\n";
       // auxx << endTime <<"\n";
@@ -728,13 +728,13 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
 
     /* ================================================================ */
     /* WHC: just to see how many chroms are carrying dup_2 */
-    int counting_dup_2 = 0;
-    for (int temp = 0; temp < 2 * N; ++temp) {
-      if (pointer[pres][temp]->b == 5) {
-	++counting_dup_2;
-      }
-    }
-    cout << "The number of chroms that are carrying dup_2 = " << counting_dup_2 << '\n';
+    //    int counting_dup_2 = 0;
+    //    for (int temp = 0; temp < 2 * N; ++temp) {
+    //      if (pointer[pres][temp]->b == 5) {
+    //	++counting_dup_2;
+    //      }
+    //    }
+    //    cout << "The number of chroms that are carrying dup_2 = " << counting_dup_2 << '\n';
     /* WHC: the end of counting
     /* ================================================================ */
     
@@ -1318,6 +1318,10 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
 	chr->mpb[junctionBlock] = valr0 + (pointer[prev][father]->mpb[junctionBlock] - vald0);
 
 	//COPY INFO FROM BLOCK 2 IF PRESENT
+
+	// WHC: WRONG??? forgot copying some information???
+
+	
 	// WHC: as from junction point on, all mutation info comes from father...
 	// WHC: (also, previous step only copy mutation info with the junctionBlock!!!
 	for (j = junctionBlock + 1; j < chr->b; j++) {
@@ -1404,7 +1408,8 @@ void duplication_2(int i,int prev, bool from) {
 
   // WHC: need to understand this before changing; changed, need double-check
   for (k = 0; k < MutCount; k++) {
-    if (muttable[k].block == 0) {
+    // WHC: this may be the causes of thousands of tries!!!! Should also copy dup_1's informations!!!
+    if (muttable[k].block == 0 || muttable[k].block == 2) {
       muttable[MutCount + tempMutCount].position = muttable[k].position;
       muttable[MutCount + tempMutCount].block = 4;
       tempMutCount++;
@@ -1502,6 +1507,21 @@ void mutation(float probability, int i, int pres) {
 	muttable[MutCount].position = muttable[MutCount - 2].position;
 	MutCount++;
       }
+
+      // WHC: FORGOT the j == 4!!!! Causing trouble in muttable[]!!!! BUT, I am so happy figuring this out!!!
+
+      if (j == 4) {
+	// WHC: must be in or after phaseIV()
+	muttable[MutCount].block = 0;
+	muttable[MutCount].position = muttable[MutCount - 1].position;
+	MutCount++;
+
+	// WHC: copy to dup_2
+	muttable[MutCount].block = 2;
+	muttable[MutCount].position = muttable[MutCount - 2].position;
+	MutCount++;
+      }
+      
     }
   }
 
