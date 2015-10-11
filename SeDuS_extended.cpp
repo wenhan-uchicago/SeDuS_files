@@ -2294,13 +2294,17 @@ int DupliFreq(int h, int block, int n) {
 
   if (n == N){
     for (i = 0; i < 2 * n; i++) {
-      if (pointer[h][i]->b == (block + 1)) {
+      //      if (pointer[h][i]->b == (block + 1)) {
+      // WHC: maybe?
+      if (pointer[h][i]->b >= (block + 1)) {
 	quantity++;
       }
     }
   }else{
     for (i = 0; i < 2 * n; i++) {
-      if (pointer[h][sample[i]]->b == (block + 1)) {
+      //      if (pointer[h][sample[i]]->b == (block + 1)) {
+      // WHC: same reason as previous
+      if (pointer[h][i]->b >= (block + 1)) {
 	quantity++;
       }
     }
