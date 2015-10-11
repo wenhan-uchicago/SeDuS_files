@@ -2132,7 +2132,8 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
   if(block == 2){
     //duplicationFreq = DupliFreq(prev, 2, n);
     duplicationFreq = DupliFreq(h, 2, n);
-    s = (int) duplicationFreq/2; // WHC: why divided by 2??
+    // WHC: why divided by 2?? Because DupliFreq() returns the number of chroms, but s is the number of individuals!!
+    s = (int) duplicationFreq/2;
   } else if (block == 4) {	// WHC: newly added
     duplicationFreq = DupliFreq(h, 4, n);
     s = (int) duplicationFreq / 2;
