@@ -88,6 +88,9 @@ int STRUCTUREDTIME = 30; // WHC: STRUCTUREDTIME * N is the number of generations
 // WHC: STRUCTURED_2_TIME * N is the number of generations in Phase IV
 int STRUCTURED_2_TIME = 30;
 
+// WHC: PHASE_V_TIME * N is the number of generations of Phase V
+int PHASE_V_TIME = 20;
+int PHASE_V_LENGTH = (int) PHASE_V_TIME * N;
 
 int TIMELENGTH = (int) BIGTIME * N; // Total number of generations (including all phases)
 int BURNIN = (int) BURNINTIME * N; // Number of generations in phase I
@@ -253,6 +256,9 @@ void phaseIII(float);
 
 // WHC: for phaseIV(); it is a similar function to phaseII()
 void phaseIV(int, int, int, float);
+
+// WHC: for phaseV(); it is a similar function to phaseIII()
+void phaseV(float);
 
 void open_files(); // Opening files
 void close_files(); // Closing files
@@ -508,6 +514,10 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       phaseIV(timeToFixation,0, 1, kappa);
       /* END PHASE IV */
 
+      /* PHASE V: RESOLUTION after 2nd duplication */
+      cout << "PHASE V" << '\n';
+      phaseV(kappa);
+      
       for (j = 0; j < B+2; j++) {
 	for (o = 0; o < numofsamples; o++) {samplefile[j][o][0] << "\n";samplefile[j][o][1] << "\n";}
       }
@@ -728,6 +738,49 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
     /* WHC: the end of counting
     /* ================================================================ */
     
+  }
+}
+
+/*=====================================================================================================================*/
+
+
+
+/*=====================================================================================================================*/
+// WHC: my phaseV() is a similar function to phaseII(), now
+
+void phaseV(float k){
+  bool does_print = false;
+  for (era = (int) (TIMELENGTH + STRUCTURED_2) / PROMETHEUS; era < (int) (TIMELENGTH + STRUCTURED_2 + PHASE_V_LENGTH) / PROMETHEUS; era++) {
+    // GENEALOGY (all chr have the duplication, there are no two populations to take into account)
+    genealogy_2(rho * BLOCKLENGTH, 0, (3 * k * BLOCKLENGTH)); // WHC: genealogy_2(x, 0, x), the 0 means it is not in phaseIV()
+    int prom=-1;
+    int prev = 0;
+    int pres = 1;
+    bool skip = false;
+    for (std::vector<fertility_info>::iterator it=fertility_list.begin(); it!=fertility_list.end(); ++it){
+      int i = (*it).x;
+      int t = (*it).y;
+      if(prom!=t){
+	if (prev == 1) {prev = 0;pres = 1;} else {prev = 1;pres = 0;}
+      }
+      prom = t;
+      if(skip == false){
+	parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);// PARENT PICKING (with recombination)
+	mutation(mu, i,pres);// MUTATION and CONVERSION (for each fertile chromosome)
+	if(IGCmatrix[i][t]==true && (i%2 == 0)){
+	  skip = true;
+	  int otheri = i+1;
+	  parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,otheri,t);// PARENT PICKING (with recombination)
+	  mutation(mu, otheri,pres);// MUTATION and CONVERSION (for each fertile chromosome)
+	}
+	conversion(kappa, t, i, pres, donorRatio, sameDifIGC);							
+      }else {skip = false;}
+    }
+    // CALCULATE THE STATISTICS
+    if(era == ((int) (TIMELENGTH/PROMETHEUS)-1)){
+      does_print=true;
+    }
+    statistics(pres, does_print);
   }
 }
 
@@ -1031,9 +1084,7 @@ void genealogy_2(float probability, int strornot, float IGCprobability) { // Gen
       }
       if (previous==1) {previous=0;  present=1;} else {previous=1;  present=0;}
     }
-  }
-  // NORMAL GENEALOGY (no 2 populations Duplicated/NoDuplicated)
-  else if (strornot == 0){
+  } else if (strornot == 0){  // NORMAL GENEALOGY (no 2 populations Duplicated/NoDuplicated); in phaseV()
     for (int tt=0 ; tt < PROMETHEUS ; tt++){
       for (int i=0 ; i < 2*N ; i++){
 	int val=(int) (rand()%(2*N));
@@ -1440,6 +1491,7 @@ void mutation(float probability, int i, int pres) {
 	MutCount++;
       } else if (j == 2 && duFreq_2 == true) {
 	// WHC: in phaseIV()
+	// WHC: or in phaseV()
 	// WHC: copy to dup_1
 	muttable[MutCount].block = 0;
 	muttable[MutCount].position = muttable[MutCount - 1].position;
@@ -1758,6 +1810,8 @@ void statistics(int prev, bool does_print) {
   }
   // CALCULATES THE NUMBER OF PRIVATE & SHARED MUTATIONES BETWEEN BLOCKS 0 & 2
   DivergenceForAll(0, 2, prev);
+  DivergenceForAll(0, 4, prev);
+  DivergenceForAll(2, 4, prev);
 }
 
 /////////////////////////////////////////////////////////////////////
