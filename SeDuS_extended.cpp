@@ -1646,9 +1646,6 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	  chrDonor = i;
 	  chrReceptor = i;
 
-	} else {
-	  cout << "something wrong in void conversion()\n";
-	  exit(0);
 	}
       }
     }
@@ -1661,6 +1658,8 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
       // Determines conversion initiation point
       junction = (int) (rand() % (BLOCKLENGTH));
       // Determines gene conversion tract length through function tractpql()
+      // WHC: what if this lies outside of a block???
+      // WHC: it just doesn't copy the mutation outside this particular block; because mutation[BLOCK][mutation_index]
       tractlength = tractpql(meanTractLength);
       // If tractlength is an odd number, we must correct junction in order for gene conversion to be balanced
       if(tractlength%2 != 0){
