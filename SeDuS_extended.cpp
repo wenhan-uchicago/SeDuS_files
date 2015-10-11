@@ -2133,12 +2133,18 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
     //duplicationFreq = DupliFreq(prev, 2, n);
     duplicationFreq = DupliFreq(h, 2, n);
     s = (int) duplicationFreq/2;
+  } else if (block == 4) {	// WHC: newly added
+    duplicationFreq = DupliFreq(h, 4, n);
+    s = (int) duplicationFreq / 2;
   }
   if (s == 0) { return results; }
 
   for (m = 0, number = 0; m < MutCount; m++) {
     if (block == muttable[m].block && muttable[m].frequency != 0) {
       if (muttable[m].frequency != 1) {
+	// WHC: muttable[].frequency, is calculated in FSL() by dividing (2 * N), not (2 * s)
+	// WHC: so, it is a population-level frequency, not a sample-level frequency as here
+	// WHC: and this time, muFrequencyIntWholePopAndSample() will just do sample-level based on sample[]
 	mufreq = (float) muFrequencyIntWholePopAndSample(h, muttable[m].position, muttable[m].block,n);
 	mufreq = (mufreq)/(2*s);
 	if(mufreq != 0){
@@ -2163,6 +2169,7 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
   }
 
   // BUILD THE PROTOTYPE: AN ORDERED SEQUENCE WITH ALL POSSIBLE MUTATION POSITIONS
+  // WHC: sorting prototype[]
   for (m = 0, p = 0; m < number; m++) {
     if (p == 0) {
       prototype[p] = list[m];
@@ -2181,6 +2188,7 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
   }
 
   // PRINTS POSITIONS OF SEGREGATING SITES WITH FIVE DECIMAL POSITIONS
+  // WHC: so the output is ordered
   if(does_print == true){
     float rounded_mutation;
     for(int nn=0; nn < number ; nn++){
@@ -2199,6 +2207,10 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
 	pos = prototype[j];
 	k = location(prototype[j], h, sample[i], block);
 	if (pointer[h][sample[i]]->mutation[block][k] == pos && k < pointer[h][sample[i]]->mpb[block]) {
+	  // WHC: this if () clause shows multiple times, it is to test whether the specific mutation (at pos position),
+	  // WHC: shoulds in the specific individual (sample[i]) or not
+	  // WHC: notice that the k < pointer[h][sample[i]]->mpb[block] is NECESSARY (hint: if there is no such mutation, return value..)
+	  
 	  mutationsNewFile[block] << "1";
 	}else{
 	  mutationsNewFile[block] << "0";
@@ -2215,6 +2227,8 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
   }
   //FIND THE UNFOLDED SITE FREQUENCY SPECTRUM
   //xi[i] IS AN ARRAY THAT COUNTS THE NUMBER OF POLYMORPHIC SITES THAT HAVE i COPIES OF THE MUTATION
+  // WHC: so the output file SFS_x_ID means -- 12, 10, 20,... there are 12 polymophic sites with 1 copy, 10 with 2 copies, 20 with 3...
+  
   for (i = 1; i < 2 * s; i++) {
     for (j = 0; j < number; j++) {
       if (mutationCounts[j] == i) {
@@ -2231,6 +2245,7 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
   }
 
   // CALCULATE AVERAGE PAIRWISE DIFFERENCE
+  // WHC: what does this mean??
   for (i = 1, value = 0; i < 2 * s; i++) {
     value += (float) (i * (2 * s - i) * xi[i]);
   }
@@ -2289,6 +2304,7 @@ void DivergenceForAll(int blockA, int blockB, int h) {
 ////////////////////////////
 
 // CALCULATES ABSOLUTE FREQUENCY OF THE DUPLICATION
+// WHC: good for phaseIV(), after changing == to >=
 int DupliFreq(int h, int block, int n) {
   int i = 0, quantity = 0;
 
