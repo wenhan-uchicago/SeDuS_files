@@ -1879,12 +1879,12 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	  // j should == junctionBlock now
 	  j = junctionBlock + 1;
 
-	  if (j == 5) { //j counts 0,1,2 but .b counts 1,2,3
+	  if (j == 4) { //j counts 0,1,2 but .b counts 1,2,3
 	    chr->mpb[4] = pointer[prev][father]->mpb[4];
 	    for (k = 0 ; k < pointer[prev][father]->mpb[4] ; k++) {
 	      chr->mutation[4][k] = pointer[prev][father]->mutation[4][k];
 	    }
-	  } else if (j == 6) {
+	  } else if (j == 5) {
 	    // WHC: do nothing
 	  } else {
 	    cout << "impossible!\n";
