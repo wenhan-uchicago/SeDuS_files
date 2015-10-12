@@ -1,4 +1,4 @@
-***************************************************************************
+/****************************************************************************
  **                                                                        **
  **  SEDUS, Segmental Duplication Simulator                                **
  **  Copyright (C) 2015 Diego A. Hartasánchez, Marina Brasó-Vives,         **
@@ -275,7 +275,7 @@ void phaseIV(int, int, int, float);
 void phaseV(float);
 
 // WHC: for phaseVI(); similar to phaseIV(), but is similating losing dup_1
-void phaseVI(int prev, int pres, float k);
+void phaseVI(int, int, float);
 
 void open_files(); // Opening files
 void close_files(); // Closing files
@@ -284,10 +284,16 @@ void genealogy(float, int, float); // rho, 0/1(non structured or structured) ///
 void genealogy_2(float, int, float);
 void parentpicking(int[maxNumOfHS], int[maxNumOfHS], float[maxNumOfHS], int, int, int,int,int); // crossoverBegin, crossoverEnd //// Create new generation from previous one (with recombination)
 
+// WHC: parentpicking for phaseVI
+void parentpicking_for_phaseVI(int[maxNumOfHS], int[maxNumOfHS], float[maxNumOfHS], int, int, int,int,int);
+
 void duplication(int,int,bool); // Create Duplication for eva (first duplicated chromosome)
 
 // WHC: copy of duplication() for phaseIV()
 void duplication_2(int,int,bool); // Create Duplication for eva (first duplicated chromosome)
+
+// WHC: losing dup_1 in phaseVI
+void lose_of_duplication(int, int);
 
 void mutation(float, int, int); // For each fertile chromosome decide if a mutation happens and execute it if necessary
 
@@ -312,6 +318,10 @@ int muFrequencyCollapsedCallingFromSample(int, int, int); // Calculates absolute
 int tractpql(float); // Returns a given random tract length from the mean tract length
 void SamplingIndividuals(int); // Sample corresponding number of individuals (register their number in sample[])
 int GenerateFixationTrajectory(int, int); // Generates fixation trajectory of the duplication (fixed or not)
+
+// WHC: for generating trajectory for phase VI
+void Generate_phaseVI_trajectory();
+
 void print_fertility();
 float round(float, int);
 int minim (int, int);
@@ -865,7 +875,10 @@ void phaseVI(int prev, int pres, float k) {
       prom = t;
       if(skip == false){
 	// WHC: I think parentpicking() works for phaseIV(); same is true for mutation()
-	parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);// PARENT PICKING (with recombination)
+
+	// WHC: has to decide which blcok does the crossover happen, before decidiing #blocks for child chrom!!!
+	
+	parentpicking_for_phaseVI(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);// PARENT PICKING (with recombination)
 	mutation(mu, i,pres);// MUTATION and CONVERSION (for each fertile chromosome)
 	if(IGCmatrix[i][t]==true && (i%2 == 0 )){
 	  // WHC: if IGC happend, need to pick and mutate the partner chrom
@@ -1227,29 +1240,31 @@ void genealogy_2(float probability, int strornot, float IGCprobability) { // Gen
       
       for(int i=0 ; i < 2*N ; i++){
 	int val = (int) (rand()%(2*N));
-	int temp = duplicontent_2[present][i];
+	int temp = lose_of_duplicontent[present][i];
 	// Duplicontent is an array that indicates which chr carry the duplication (with present and previous lines)
-	duplicontent_2[present][i] = duplicontent_2[present][val];
-	duplicontent_2[present][val] = temp;
+	lose_of_duplicontent[present][i] = lose_of_duplicontent[present][val];
+	lose_of_duplicontent[present][val] = temp;
       }
       // For all the chr that have to have the duplication at this time...
 
       // WHC: need to generate a fixationTrajectory_2[] for phaseIV() ?
-      for(int i=0 ; i < fixationTrajectory[trajectime] ; i++){
+      for(int i=0 ; i < phaseVI_trajectory[trajectime] ; i++){
 	// Choose a father randomly (from the previous duplicated population)
 	// WHC: as present chroms which will have dup have been chosen before, this is for randomly picking a father
 	// WHC: remember, i = 0, 1, 2, ...
-	int val=(int) (rand()%(fixationTrajectory[trajectime-1]));
+	int val=(int) (rand()%(phaseVI_trajectory[trajectime-1]));
+
+	// WHC: also, phaseVI_trajectory[0] == 1!!! as is the case for fixationTrajectory[0] = 1
 	
-	// WHC: FOUND a MISTAKE! should be duplicatent_2[]!!
 	// ancestry[duplicontent[present][i]][tt] = duplicontent[previous][val];
-	ancestry[duplicontent_2[present][i]][tt] = duplicontent_2[previous][val];
+	ancestry[lose_of_duplicontent[present][i]][tt] = lose_of_duplicontent[previous][val];
       }
+      
       // For all the chr that have not to have the duplication at this time...
-      for(int i=fixationTrajectory[trajectime] ; i < 2*N ; i++){
+      for(int i=phaseVI_trajectory[trajectime] ; i < 2*N ; i++){
 	// Choose a father randomly (from the previous non-duplicated population)
-	int val = (int) (rand()%(2*N-fixationTrajectory[trajectime-1])) + fixationTrajectory[trajectime-1];
-	ancestry[duplicontent_2[present][i]][tt] = duplicontent_2[previous][val];
+	int val = (int) (rand()%(2*N-phaseVI_trajectory[trajectime-1])) + phaseVI_trajectory[trajectime-1];
+	ancestry[lose_of_duplicontent[present][i]][tt] = lose_of_duplicontent[previous][val];
       }
       if (previous==1) {previous=0;  present=1;} else {previous=1;  present=0;}
     }
@@ -1299,7 +1314,7 @@ void genealogy_2(float probability, int strornot, float IGCprobability) { // Gen
 	}
 			
 	if((sameDifIGC!=1)){
-	  p = rand() / ((float) RAND_MAX + 1);// Determine IGC processes (with probability "IGCprobability"); WHC: probabily error, should be "Determin IGC processes"; also, it is determining IGC process between 2 chroms, instead of on itself
+	  p = rand() / ((float) RAND_MAX + 1);// Determine IGC processes (with probability "IGCprobability"); WHC: probabily error, should be "Determine IGC processes"; also, it is determining IGC process between 2 chroms, instead of on itself
 
 	  // WHC: the (1 - sameDifIGC), is due to the fact there is another p < (2 * probability * BLOCKLENGTH * sameDifIGC) in void conversion(); this one here is to only test whether IGC comes from different chromosomes, if so, need to record its genealogy; if not, then it either doesn't have IGC, or it has IGC within the same chromosome, which doesn't require genealogy for its partner chromosome
 	  
@@ -1511,6 +1526,377 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
 
 }
 
+/* ================================================================ */
+// WHC: parentpicking_for_phaseVI() is to deal with when some chroms have 4 blocks, some have 5
+// WHC: which needs to pick crossover positon (and partner) before deciding child chrom's #blocks
+
+void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float crossRatio[maxNumOfHS], int numCrossRegions, int prev, int pres, int i, int t) {
+  // WHC: only consider the situation where a chrom either has 4 or 5 blocks; and crossover can only happen on common blocks
+  
+  int j, k, junctionBlock, defHS, HS;
+  int father, partner, junction, vald0, valr0, childblocks, minblock, recTract, end, beg;
+  bool success;
+  chrom * chr;
+  float p;
+  double num;
+
+  // PARENT-PICKING
+  father = ancestry[i][t];
+  // RECOMBINATION
+  if (recombimatrix[i][t] == true) {
+    // WHC: childblocks will depends on the position of crossover
+    //    childblocks = pointer[prev][father]->b;
+    if (ancestry[i][t] % 2 == 0) {
+      partner = ancestry[i][t] + 1;
+    } else {
+      partner = ancestry[i][t] - 1;
+    }
+    
+    chr = pointer[pres][i];
+
+    minblock = minim(pointer[prev][father]->b, pointer[prev][partner]->b);
+
+    if (minblock == 5) {	// WHC: both have 5 blocks, normal crossover
+      // here, either from partner or father does not matter
+      childblocks = pointer[prev][partner]->b;
+      chr->b = childblocks;
+    
+
+      //DETERMINE THE HOTSPOT WHERE CROSSOVER WILL OCCUR
+
+      // WHC: Should always consider crossover after deletion happened
+      // WHC: probabily will just write a parentpicking() specifically for that phase...
+      // WHC: otherwise I think this is workable for now; when a block that doesn't exist happen, just no crossover and copy parental chrom
+      p = rand() / ((float) RAND_MAX + 1);
+      defHS = numCrossRegions-1;
+      num = 1;
+      HS = numCrossRegions-1;
+      success = 0;
+      while(HS >= 0 && success==0){
+	num = num-crossRatio[HS];
+	if (p < num){
+	  defHS = HS-1;
+	}
+	else {
+	  success=1;
+	}
+	HS--;
+      }
+      end = crossEnd[defHS];
+      beg = crossBegin[defHS];
+      if (((minblock * BLOCKLENGTH) < end) && ((minblock * BLOCKLENGTH) > beg)) {
+	end = minblock * BLOCKLENGTH;
+      }
+      if (((minblock * BLOCKLENGTH) >= end) && ((minblock * BLOCKLENGTH) > beg)) {
+	// If neither father and partner have mutations in any block
+	/*      if ((pointer[prev][father]->mpb[0] == 0) && (pointer[prev][father]->mpb[1] == 0) &&
+		(pointer[prev][father]->mpb[2] == 0) && (pointer[prev][partner]->mpb[0] == 0) &&
+		(pointer[prev][partner]->mpb[1] == 0) && (pointer[prev][partner]->mpb[2] == 0)) {
+	*/
+	if ((pointer[prev][father]->mpb[0] == 0) && (pointer[prev][father]->mpb[1] == 0) &&
+	    (pointer[prev][father]->mpb[2] == 0) && (pointer[prev][father]->mpb[3] == 0) &&
+	    (pointer[prev][father]->mpb[4] == 0) && (pointer[prev][partner]->mpb[0] == 0) &&
+	    (pointer[prev][partner]->mpb[1] == 0) && (pointer[prev][partner]->mpb[2] == 0) &&
+	    (pointer[prev][partner]->mpb[3] == 0) && (pointer[prev][partner]->mpb[4] == 0)) {
+	  for (j = 0; j < chr->b; j++) {
+	    chr->mpb[j] = 0;
+	  }
+	}// If at least one of them have one or more mutations in one or more blocks
+	else {
+
+	  recTract = end - beg;
+	  junction = (int) (rand() % (recTract));
+	  junction += beg;
+	  junctionBlock = (int) (junction / BLOCKLENGTH); // block where junction fell
+	  //	   cout << junctionBlock << " ";
+	  // WHC: is the number of mutations before junction point
+	  valr0 = location(junction - junctionBlock*BLOCKLENGTH, prev, partner, junctionBlock); // junction location in the block "junctionBlock" of partner
+	  vald0 = location(junction - junctionBlock*BLOCKLENGTH, prev, father, junctionBlock); // junction location in the block "junctionBlock" of father
+
+	  //COPY THE INFO FROM PARTNER (BLOCK 0)
+	  for (j = 0; j < junctionBlock; j++) {
+	    chr->mpb[j] = pointer[prev][partner]->mpb[j];
+	    for (k = 0; k < pointer[prev][partner]->mpb[j]; k++) {
+	      chr->mutation[j][k] = pointer[prev][partner]->mutation[j][k];
+	    }
+	  }
+
+	  //COPY INFO IN JUNCTION BLOCK (BLOCK 1)
+	  //FROM PARTNER
+
+	  // WHC: copy mutation from [partner] until junction point
+	  for (k = 0; k < valr0; k++) {
+	    chr->mutation[junctionBlock][k] = pointer[prev][partner]->mutation[junctionBlock][k];
+	  }
+	  //FROM FATHER
+	
+	  // WHC: copy mutation from [father] from junction point on
+	  for (k = 0; k < (pointer[prev][father]->mpb[junctionBlock] - vald0); k++) {
+	    chr->mutation[junctionBlock][k + valr0] = pointer[prev][father]->mutation[junctionBlock][k + vald0];
+	  }
+	  //ESTABLISH MPB
+	  chr->mpb[junctionBlock] = valr0 + (pointer[prev][father]->mpb[junctionBlock] - vald0);
+
+	  //COPY INFO FROM BLOCK 2 IF PRESENT
+
+	  // WHC: WRONG??? forgot copying some information???
+
+	
+	  // WHC: as from junction point on, all mutation info comes from father...
+	  // WHC: (also, previous step only copy mutation info with the junctionBlock!!!
+	  for (j = junctionBlock + 1; j < chr->b; j++) {
+	    if (j < pointer[prev][father]->b) { //j counts 0,1,2 but .b counts 1,2,3
+	      chr->mpb[j] = pointer[prev][father]->mpb[j];
+	      for (k = 0 ; k < pointer[prev][father]->mpb[j] ; k++) {
+		chr->mutation[j][k] = pointer[prev][father]->mutation[j][k];
+	      }
+	    } else {
+	      chr->mpb[j] = 0;
+	    }
+	  }
+	}
+      } else if (((minblock * BLOCKLENGTH) < end) && ((minblock * BLOCKLENGTH) <= beg)) {
+	// WHC: this steps looks like a "lazy" step; (NO! I was wrong! Imagine if a hot block on block 3 with 100% proposion!
+	// WHC: (then, if we don't have block 3, we don't have recombination!)
+	copychr(prev, father, pres, i);
+      }
+    } else if (minblock == 4) {
+      // WHC: this is when one chrom has 4 blocks while another has 5 blocks; tricky one
+
+      // WHC: let's decide HS0(block 0, 1, 2), HS1(block 3) and HS2(block 4), which one will have
+      p = rand() / ((float) RAND_MAX + 1);
+      defHS = numCrossRegions-1; // as numCrossRegions == numHS == 3, this defHS = 2 here
+      num = 1;
+      HS = numCrossRegions-1;
+      success = 0;
+      while(HS >= 0 && success==0){
+	// WHC: so, defHS is the final index(0, 1, 2) of crossoverRatio etc.
+	num = num-crossRatio[HS];
+	if (p < num){
+	  defHS = HS-1;
+	}
+	else {
+	  success=1;
+	}
+	HS--;
+      }
+
+      if (defHS == 0) {		// WHC: means crossover will happen on block 0 - 2, which needs to escape block 2, as it is absent
+	// WHC: still, partner decides # of child's block
+	// WHC: depends on father here! on partner in else if clause
+	childblocks = pointer[prev][father]->b;
+	chr->b = childblocks;
+
+	// WHC: crossover could only happen on block 0 or 1
+	end = 2 * BLOCKLENGTH;
+	beg = crossoverBegin[defHS]; // WHC: this is to say, beg = 0
+	if (beg != 0) { cout << "this could not be!"; exit(0); }
+
+
+	if ((pointer[prev][father]->mpb[0] == 0) && (pointer[prev][father]->mpb[1] == 0) &&
+	    (pointer[prev][father]->mpb[2] == 0) && (pointer[prev][father]->mpb[3] == 0) &&
+	    (pointer[prev][father]->mpb[4] == 0) && (pointer[prev][partner]->mpb[0] == 0) &&
+	    (pointer[prev][partner]->mpb[1] == 0) && (pointer[prev][partner]->mpb[2] == 0) &&
+	    (pointer[prev][partner]->mpb[3] == 0) && (pointer[prev][partner]->mpb[4] == 0)) {
+	  for (j = 0; j < chr->b; j++) {
+	    chr->mpb[j] = 0;
+	  }
+	}// If at least one of them have one or more mutations in one or more blocks
+	else {
+
+	  recTract = end - beg;
+	  junction = (int) (rand() % (recTract));
+	  junction += beg;
+	  junctionBlock = (int) (junction / BLOCKLENGTH); // block where junction fell
+	  if (junctionBlock > 2) { cout << "this shouldn't happne too!\n"; exit(0); } // WHC: just a doulbe-check
+	  
+	  //	   cout << junctionBlock << " ";
+	  // WHC: is the number of mutations before junction point
+	  valr0 = location(junction - junctionBlock*BLOCKLENGTH, prev, partner, junctionBlock); // junction location in the block "junctionBlock" of partner
+	  vald0 = location(junction - junctionBlock*BLOCKLENGTH, prev, father, junctionBlock); // junction location in the block "junctionBlock" of father
+
+	  //COPY THE INFO FROM PARTNER (BLOCK 0)
+	  for (j = 0; j < junctionBlock; j++) {
+	    // WHC: if partner has dup_1, then it is fine
+	    // WHC: else if it doesn't have dup_1, them mpb[2] should be 0, so this should be fine; need double-check
+	    chr->mpb[j] = pointer[prev][partner]->mpb[j];
+	    for (k = 0; k < pointer[prev][partner]->mpb[j]; k++) {
+	      chr->mutation[j][k] = pointer[prev][partner]->mutation[j][k];
+	    }
+	  }
+
+	  // WHC: copy mutation from [partner] until junction point
+	  for (k = 0; k < valr0; k++) {
+	    chr->mutation[junctionBlock][k] = pointer[prev][partner]->mutation[junctionBlock][k];
+	  }
+	  //FROM FATHER
+	
+	  // WHC: copy mutation from [father] from junction point on
+	  for (k = 0; k < (pointer[prev][father]->mpb[junctionBlock] - vald0); k++) {
+	    chr->mutation[junctionBlock][k + valr0] = pointer[prev][father]->mutation[junctionBlock][k + vald0];
+	  }
+	  //ESTABLISH MPB
+	  chr->mpb[junctionBlock] = valr0 + (pointer[prev][father]->mpb[junctionBlock] - vald0);
+
+	  //COPY INFO FROM BLOCK 2 IF PRESENT
+
+	  // WHC: WRONG??? forgot copying some information???
+
+	
+	  // WHC: as from junction point on, all mutation info comes from father...
+	  // WHC: (also, previous step only copy mutation info with the junctionBlock!!!
+	  //	  for (j = junctionBlock + 1; j < chr->b; j++) {
+	  // WHC: here, should change; as chr->b may be 4 while #blocks for fathter = 5
+	  // j should == junctionBlock now
+	  j = junctionBlock + 1;
+
+	  if ((j + 1 == 1) && (pointer[prev][father]->b == 5)) { //j counts 0,1,2 but .b counts 1,2,3
+	    chr->mpb[1] = pointer[prev][father]->mpb[1];
+	    chr->mpb[2] = pointer[prev][father]->mpb[2];
+	    for (k = 0 ; k < pointer[prev][father]->mpb[1] ; k++) {
+	      chr->mutation[1][k] = pointer[prev][father]->mutation[1][k];
+	    }
+	    for (k = 0 ; k < pointer[prev][father]->mpb[2] ; k++) {
+	      chr->mutation[2][k] = pointer[prev][father]->mutation[2][k];
+	    }
+	  } else if (j + 1 == 1 && pointer[prev][father]->b == 4) {
+	    chr->mpb[1] = pointer[prev][father]->mpb[1];
+	    for (k = 0 ; k < pointer[prev][father]->mpb[1] ; k++) {
+	      chr->mutation[1][k] = pointer[prev][father]->mutation[1][k];
+	    }
+	  } else if (j + 1 == 2) {
+	    // do nothing
+	  } else {
+	    cout << "impossible!\n";
+	    exit(0);
+	    //chr->mpb[j] = 0;
+	  }
+	}
+      } else if (defHS == 1 || defHS == 2) { // means crossover will happen on block 3 - 4, needs to pick #blocks for child chrom
+	//      if (defHS == 1 || defHS == 2) { // means crossover will happen on block 3 - 4, needs to pick #blocks for child chrom
+	// WHC: I incoporated defHS == 0 here, just need to adjust beg and end
+	// WHC: cannot merge them; because if crossover happen before block 2, chr->b depends on father; otherwise on partner
+	
+	// WHC: as crossover happens after dup_1, #blocks(child) = #block(partner); as designed in parentpicking(), left side comes from partner, while right side comes from father
+	
+	childblocks = pointer[prev][partner]->b;
+	chr->b = childblocks;
+    
+
+      //DETERMINE THE HOTSPOT WHERE CROSSOVER WILL OCCUR
+
+      // WHC: Should always consider crossover after deletion happened
+      // WHC: probabily will just write a parentpicking() specifically for that phase...
+      // WHC: otherwise I think this is workable for now; when a block that doesn't exist happen, just no crossover and copy parental chrom
+      // as defHS already decided
+      if (defHS == 0) {
+	cout << "this should not happen.\n";
+	exit(0);
+	end = 2 * BLOCKLENGTH;
+	beg = crossBegin[defHS];
+	if (beg != 0) { cout << "this could not be right.\n"; exit(0); }
+      } else {
+	end = crossEnd[defHS];
+	beg = crossBegin[defHS];
+      }
+      // WHC: the following if clause no longer fits here
+      //      if (((minblock * BLOCKLENGTH) < end) && ((minblock * BLOCKLENGTH) > beg)) {
+      //	end = minblock * BLOCKLENGTH;
+      //      }
+      
+
+	// If neither father and partner have mutations in any block
+	/*      if ((pointer[prev][father]->mpb[0] == 0) && (pointer[prev][father]->mpb[1] == 0) &&
+		(pointer[prev][father]->mpb[2] == 0) && (pointer[prev][partner]->mpb[0] == 0) &&
+		(pointer[prev][partner]->mpb[1] == 0) && (pointer[prev][partner]->mpb[2] == 0)) {
+	*/
+      // WHC: as when lose_of_duplication(), I set mpb[0] == 0, this should be fine???
+	if ((pointer[prev][father]->mpb[0] == 0) && (pointer[prev][father]->mpb[1] == 0) &&
+	    (pointer[prev][father]->mpb[2] == 0) && (pointer[prev][father]->mpb[3] == 0) &&
+	    (pointer[prev][father]->mpb[4] == 0) && (pointer[prev][partner]->mpb[0] == 0) &&
+	    (pointer[prev][partner]->mpb[1] == 0) && (pointer[prev][partner]->mpb[2] == 0) &&
+	    (pointer[prev][partner]->mpb[3] == 0) && (pointer[prev][partner]->mpb[4] == 0)) {
+	  for (j = 0; j < chr->b; j++) {
+	    chr->mpb[j] = 0;
+	  }
+	}// If at least one of them have one or more mutations in one or more blocks
+	else {
+
+	  recTract = end - beg;
+	  junction = (int) (rand() % (recTract));
+	  junction += beg;
+	  junctionBlock = (int) (junction / BLOCKLENGTH); // block where junction fell
+	  if (defHS > 0 && junctionBlock <= 2) { cout << "this shouldn't happne!\n"; exit(0); } // WHC: just a doulbe-check
+	  
+	  //	   cout << junctionBlock << " ";
+	  // WHC: is the number of mutations before junction point
+	  valr0 = location(junction - junctionBlock*BLOCKLENGTH, prev, partner, junctionBlock); // junction location in the block "junctionBlock" of partner
+	  vald0 = location(junction - junctionBlock*BLOCKLENGTH, prev, father, junctionBlock); // junction location in the block "junctionBlock" of father
+
+	  //COPY THE INFO FROM PARTNER (BLOCK 0)
+	  for (j = 0; j < junctionBlock; j++) {
+	    // WHC: if partner has dup_1, then it is fine
+	    // WHC: else if it doesn't have dup_1, them mpb[2] should be 0, so this should be fine; need double-check
+	    chr->mpb[j] = pointer[prev][partner]->mpb[j];
+	    for (k = 0; k < pointer[prev][partner]->mpb[j]; k++) {
+	      chr->mutation[j][k] = pointer[prev][partner]->mutation[j][k];
+	    }
+	  }
+
+	  // WHC: copy mutation from [partner] until junction point
+	  for (k = 0; k < valr0; k++) {
+	    chr->mutation[junctionBlock][k] = pointer[prev][partner]->mutation[junctionBlock][k];
+	  }
+	  //FROM FATHER
+	
+	  // WHC: copy mutation from [father] from junction point on
+	  for (k = 0; k < (pointer[prev][father]->mpb[junctionBlock] - vald0); k++) {
+	    chr->mutation[junctionBlock][k + valr0] = pointer[prev][father]->mutation[junctionBlock][k + vald0];
+	  }
+	  //ESTABLISH MPB
+	  chr->mpb[junctionBlock] = valr0 + (pointer[prev][father]->mpb[junctionBlock] - vald0);
+
+	  //COPY INFO FROM BLOCK 2 IF PRESENT
+
+	  // WHC: WRONG??? forgot copying some information???
+
+	
+	  // WHC: as from junction point on, all mutation info comes from father...
+	  // WHC: (also, previous step only copy mutation info with the junctionBlock!!!
+	  //	  for (j = junctionBlock + 1; j < chr->b; j++) {
+	  // WHC: here, should change; as chr->b may be 4 while #blocks for fathter = 5
+	  // j should == junctionBlock now
+	  j = junctionBlock + 1;
+
+	  if (j + 1 < 5) { //j counts 0,1,2 but .b counts 1,2,3
+	    chr->mpb[4] = pointer[prev][father]->mpb[4];
+	    for (k = 0 ; k < pointer[prev][father]->mpb[4] ; k++) {
+	      chr->mutation[4][k] = pointer[prev][father]->mutation[4][k];
+	    }
+	  } else {
+	    cout << "impossible!\n";
+	    exit(0);
+	    //chr->mpb[j] = 0;
+	  }
+
+
+	}
+	
+      }
+      
+    } else {
+      cout << "something wrong in parentpicking_for_phaseVI() here.\n";
+      exit(0);
+    }
+  }// NO RECOMBINATION
+  else {
+    copychr(prev, father, pres, i);
+  }
+
+}
+
+// WHC: the end of parentpicking_for_phaseVI()
+/* ================================================================ */
 void duplication(int i,int prev, bool from) {
   int k;
   int tempMutCount = 0;
@@ -1583,6 +1969,29 @@ void duplication_2(int i,int prev, bool from) {
 }
 
 // WHC: new duplication_2() for phaseIV()
+/* ================================================================================ */
+
+/* ================================================================================ */
+// WHC: new lose_of_duplication for phaseVI()
+
+void lose_of_duplication(int eva, int prev) {
+  // WHC: need to eliminate muttable[][]'s information that came from this block????
+  // WHC: as even void mutation() only added new mutation into muttable, and lost mutations not erased until FSL()
+  // WHC: I think it is fine to just ignore this
+  // WHC: also, should consider making mpb[2] == 0?
+  
+  if (pointer[prev][eva]->b == 5) {
+    pointer[prev][eva]->b = 3;
+    
+    pointer[prev][eva]->mpb[2] = 0;
+    
+  } else {
+    cout << "something wrong in lose_of_duplication().\n";
+    exit(0);
+  }
+}
+
+// WHC: new lose_of_duplication for phaseVI()
 /* ================================================================================ */
 
 void mutation(float probability, int i, int pres) {
@@ -2793,14 +3202,17 @@ int GenerateFixationTrajectory(int maxTime, int fixationTime) {
 // WHC: purely random for now, may introduce some more advanced function in the future
 
 void Generate_phaseVI_trajectory() {
-  for (int i = 0; i < (PHASE_VI_LENGTH); ++i) {
+  phaseVI_trajectory[0] = 1;
+  
+  for (int i = 1; i < (PHASE_VI_LENGTH); ++i) {
     phaseVI_trajectory[i] = 1 + (rand() % (2 * N - 1)); // generating [1-(2N-1)]
   }
 
-  //  for (int i = 0; i < 1000; ++i) {
-  //    cout << phaseVI_trajectory[i] << " ";
-  //  }
-  //  cout << endl;
+  for (int i = 0; i < 100; ++i) {
+    cout << "phaseVI_trajectory is:\n";
+    cout << phaseVI_trajectory[i] << " ";
+  }
+  cout << endl;
 
 }
 
