@@ -1778,7 +1778,6 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	  //ESTABLISH MPB
 	  chr->mpb[junctionBlock] = valr0 + (pointer[prev][father]->mpb[junctionBlock] - vald0);
 
-	  //COPY INFO FROM BLOCK 2 IF PRESENT
 
 	  // WHC: WRONG??? forgot copying some information???
 
@@ -1791,6 +1790,14 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	  j = junctionBlock + 1;
 
 	  if ((j == 1) && (pointer[prev][father]->b == 5)) { //j counts 0,1,2 but .b counts 1,2,3
+	    // WHC: WRONG at first!! should copy father's information in ALL block 1, 2, 3, and 4!!!
+	    for (int temp = 1; temp < 5; ++temp) {
+	      chr->mpb[temp] = pointer[prev][father]->mpb[temp];
+	      for (k = 0 ; k < pointer[prev][father]->mpb[temp] ; k++) {
+		      chr->mutation[temp][k] = pointer[prev][father]->mutation[temp][k];
+	      }
+	    }
+	    /* WHC: wrong at the first time, only copied information in block 1 & 2, not in block 3, 4
 	    chr->mpb[1] = pointer[prev][father]->mpb[1];
 	    chr->mpb[2] = pointer[prev][father]->mpb[2];
 	    for (k = 0 ; k < pointer[prev][father]->mpb[1] ; k++) {
@@ -1799,15 +1806,37 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	    for (k = 0 ; k < pointer[prev][father]->mpb[2] ; k++) {
 	      chr->mutation[2][k] = pointer[prev][father]->mutation[2][k];
 	    }
+	    */
 	  } else if (j == 1 && pointer[prev][father]->b == 4) {
+
+	    for (int temp = 1; temp < 5; ++temp) {
+	      chr->mpb[temp] = pointer[prev][father]->mpb[temp];
+	      for (k = 0 ; k < pointer[prev][father]->mpb[temp] ; k++) {
+		//		if (temp == 2) { continue; } , don't need this, as pointer[][]->mpb[2] == 0 already
+		chr->mutation[temp][k] = pointer[prev][father]->mutation[temp][k];
+	      }
+	    }
+
+	    /*
 	    chr->mpb[1] = pointer[prev][father]->mpb[1];
 	    // WHC: important!!! need also assign pointer[prev][father]->mpb[2] (which is 0) to child!!!!!!!! for viod statistics_for_phaseVI()
 	    chr->mpb[2] = pointer[prev][father]->mpb[2];
 	    for (k = 0 ; k < pointer[prev][father]->mpb[1] ; k++) {
 	      chr->mutation[1][k] = pointer[prev][father]->mutation[1][k];
 	    }
+	    */
+	    
 	  } else if (j == 2) {
-	    // do nothing
+	    // WHC: do nothing
+	    // WCH: NO!!! need to copy information in block 2, 3, 4 to child chrom!! father->mpb[2] = 0 need to be copied too!
+	    for (int temp = 2; temp < 5; ++temp) {
+	      chr->mpb[temp] = pointer[prev][father]->mpb[temp];
+	      for (k = 0 ; k < pointer[prev][father]->mpb[temp] ; k++) {
+		// WHC: don't skip block 2 this time
+		chr->mutation[temp][k] = pointer[prev][father]->mutation[temp][k];
+	      }
+	    }
+	    
 	  } else {
 	    cout << "impossible!\n";
 	    exit(0);
