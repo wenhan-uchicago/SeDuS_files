@@ -836,6 +836,11 @@ void phaseVI(int prev, int pres, float k) {
   bool does_print = false;
   // Generating Fixation Trajectory in a diploid population
   Generate_phaseVI_trajectory(); // WHC: trajectory (absolute number of chroms carrying 4 blocks instead of 5)
+
+  // WHC: the Generate_phaseVI_trajectory() will generate #chroms that lose dup_1
+  // WHC: however, as crossover will change it...
+  // WHC: so, lose_of_duplicontent[previous][] must be re-sorted
+
   
   // Picking the first chromosome with the lose of dup_1 (eva)
   int eva = (int) (rand() % (2 * N));
@@ -1543,6 +1548,13 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
 
 void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float crossRatio[maxNumOfHS], int numCrossRegions, int prev, int pres, int i, int t) {
   // WHC: only consider the situation where a chrom either has 4 or 5 blocks; and crossover can only happen on common blocks
+
+  /************************************************************************************************************************
+    WHC: IMPORTANT: for crossover between #block = 5 && # blocks = 4 only: (chr->b == #father's blocks
+    if corssover happens in HS0 (block0, block1), then to make chr->b = 4, before junction pointer, all information comes from partner;
+    else if crossover happens in HS1 or HS2, then before junction pointer, all informations comes from father.
+    this is just to make sure, information about dup_1 (have or lose) comes from father
+  ************************************************************************************************************************/
   
   int j, k, junctionBlock, defHS, HS;
   int father, partner, junction, vald0, valr0, childblocks, minblock, recTract, end, beg;
@@ -1695,6 +1707,11 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
       if (defHS == 0) {		// WHC: means crossover will happen on block 0 - 2, which needs to escape block 2, as it is absent
 	// WHC: still, partner decides # of child's block
 	// WHC: depends on father here! on partner in else if clause
+
+	/*************************************************************************************************************************
+        WHC: as stated before, when defHS == 0, information before junction point comes from partner
+        chr->b = #blocks for father
+	**************************************************************************************************************************/
 	childblocks = pointer[prev][father]->b;
 	chr->b = childblocks;
 
@@ -1703,7 +1720,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	beg = crossoverBegin[defHS]; // WHC: this is to say, beg = 0
 	if (beg != 0) { cout << "this could not be!"; exit(0); }
 
-
+	// WHC: crossover may happen in either block 0 or block 1; but do NOT know how many blocks father has; so has to test all
 	if ((pointer[prev][father]->mpb[0] == 0) && (pointer[prev][father]->mpb[1] == 0) &&
 	    (pointer[prev][father]->mpb[2] == 0) && (pointer[prev][father]->mpb[3] == 0) &&
 	    (pointer[prev][father]->mpb[4] == 0) && (pointer[prev][partner]->mpb[0] == 0) &&
@@ -1789,8 +1806,15 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	// WHC: cannot merge them; because if crossover happen before block 2, chr->b depends on father; otherwise on partner
 	
 	// WHC: as crossover happens after dup_1, #blocks(child) = #block(partner); as designed in parentpicking(), left side comes from partner, while right side comes from father
+
+
+	/*
+	  if crossover happens in block 3 or block 4, all information before junction point comes from father,
+	  to make sure chr->b = pointer[prev][father]->b
+	*/
 	
-	childblocks = pointer[prev][partner]->b;
+	//	childblocks = pointer[prev][partner]->b;
+	childblocks = pointer[prev][father]->b;
 	chr->b = childblocks;
     
 
@@ -1845,27 +1869,30 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	  vald0 = location(junction - junctionBlock*BLOCKLENGTH, prev, father, junctionBlock); // junction location in the block "junctionBlock" of father
 
 	  //COPY THE INFO FROM PARTNER (BLOCK 0)
+	  // WHC: NO, from father
 	  for (j = 0; j < junctionBlock; j++) {
 	    // WHC: if partner has dup_1, then it is fine
 	    // WHC: else if it doesn't have dup_1, them mpb[2] should be 0, so this should be fine; need double-check
-	    chr->mpb[j] = pointer[prev][partner]->mpb[j];
-	    for (k = 0; k < pointer[prev][partner]->mpb[j]; k++) {
-	      chr->mutation[j][k] = pointer[prev][partner]->mutation[j][k];
+	    chr->mpb[j] = pointer[prev][father]->mpb[j];
+	    for (k = 0; k < pointer[prev][father]->mpb[j]; k++) {
+	      chr->mutation[j][k] = pointer[prev][father]->mutation[j][k];
 	    }
 	  }
 
-	  // WHC: copy mutation from [partner] until junction point
-	  for (k = 0; k < valr0; k++) {
-	    chr->mutation[junctionBlock][k] = pointer[prev][partner]->mutation[junctionBlock][k];
-	  }
+
+	  // WHC: copy mutation from [FATHER] until junction point
+	    //	  for (k = 0; k < valr0; k++) {
+	    for (k = 0; k < vald0; k++) {
+	    chr->mutation[junctionBlock][k] = pointer[prev][father]->mutation[junctionBlock][k];
+	    }
 	  //FROM FATHER
 	
-	  // WHC: copy mutation from [father] from junction point on
-	  for (k = 0; k < (pointer[prev][father]->mpb[junctionBlock] - vald0); k++) {
-	    chr->mutation[junctionBlock][k + valr0] = pointer[prev][father]->mutation[junctionBlock][k + vald0];
-	  }
+	  // WHC: copy mutation from [PARTNER] from junction point on
+	    for (k = 0; k < (pointer[prev][partner]->mpb[junctionBlock] - valr0); k++) {
+	      chr->mutation[junctionBlock][k + vald0] = pointer[prev][partner]->mutation[junctionBlock][k + valr0];
+	    }
 	  //ESTABLISH MPB
-	  chr->mpb[junctionBlock] = valr0 + (pointer[prev][father]->mpb[junctionBlock] - vald0);
+	  chr->mpb[junctionBlock] = vald0 + (pointer[prev][partner]->mpb[junctionBlock] - valr0);
 
 	  //COPY INFO FROM BLOCK 2 IF PRESENT
 
@@ -1880,9 +1907,9 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	  j = junctionBlock + 1;
 
 	  if (j == 4) { //j counts 0,1,2 but .b counts 1,2,3
-	    chr->mpb[4] = pointer[prev][father]->mpb[4];
-	    for (k = 0 ; k < pointer[prev][father]->mpb[4] ; k++) {
-	      chr->mutation[4][k] = pointer[prev][father]->mutation[4][k];
+	    chr->mpb[4] = pointer[prev][partner]->mpb[4];
+	    for (k = 0 ; k < pointer[prev][partner]->mpb[4] ; k++) {
+	      chr->mutation[4][k] = pointer[prev][partner]->mutation[4][k];
 	    }
 	  } else if (j == 5) {
 	    // WHC: do nothing
