@@ -900,7 +900,7 @@ void phaseVI(int prev, int pres, float k) {
 	  mutation_for_phaseVI(mu, otheri,pres);// MUTATION and CONVERSION (for each fertile chromosome)
 	}
 	conversion_for_phaseVI(kappa, t, i, pres, donorRatio, sameDifIGC);							
-      }else {skip = false;}
+      } else {skip = false;}
     }
     // CALCULATE THE STATISTICS
     statistics(pres, does_print);

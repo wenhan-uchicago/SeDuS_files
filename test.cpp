@@ -18,15 +18,17 @@
 #include <unistd.h>
 
 using namespace std;
-float * see_return_local_array();
 
-int main() {
+int phaseVI_trajectory[1000];
 
-  float * p = see_return_local_array();
-  return 0;
-}
+void Generate_phaseVI_trajectory() {
+  for (int i = 0; i < 1000; ++i) {
+    phaseVI_trajectory[i] = 1 + (rand() % (2 * N - 1)); // generating [1-(2N-1)]
+  }
 
-float * see_return_local_array() {
-  static float result[] = {0, 0};
-  return result;
+  //  for (int i = 0; i < 1000; ++i) {
+  //    cout << phaseVI_trajectory[i] << " ";
+  //  }
+  //  cout << endl;
+
 }
