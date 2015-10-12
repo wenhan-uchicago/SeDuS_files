@@ -913,7 +913,7 @@ void phaseVI(int prev, int pres, float k) {
     	++counting_losing_dup_1;
           }
         }
-        cout << "The number of chroms that are carrying dup_2 = " << counting_losing_dup_1 << '\n';
+        cout << "The number of chroms that are not carrying dup_1 = " << counting_losing_dup_1 << '\n';
     /* WHC: the end of counting
     /* ================================================================ */
     
@@ -1742,7 +1742,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	  }
 	  //FROM FATHER
 	
-	  // WHC: copy mutation from [father] from junction point on
+	  // WHC: copy mutation from [father] from junction point on; until the end of junctionBlock
 	  for (k = 0; k < (pointer[prev][father]->mpb[junctionBlock] - vald0); k++) {
 	    chr->mutation[junctionBlock][k + valr0] = pointer[prev][father]->mutation[junctionBlock][k + vald0];
 	  }
@@ -1761,7 +1761,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	  // j should == junctionBlock now
 	  j = junctionBlock + 1;
 
-	  if ((j + 1 == 1) && (pointer[prev][father]->b == 5)) { //j counts 0,1,2 but .b counts 1,2,3
+	  if ((j == 1) && (pointer[prev][father]->b == 5)) { //j counts 0,1,2 but .b counts 1,2,3
 	    chr->mpb[1] = pointer[prev][father]->mpb[1];
 	    chr->mpb[2] = pointer[prev][father]->mpb[2];
 	    for (k = 0 ; k < pointer[prev][father]->mpb[1] ; k++) {
@@ -1770,12 +1770,12 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	    for (k = 0 ; k < pointer[prev][father]->mpb[2] ; k++) {
 	      chr->mutation[2][k] = pointer[prev][father]->mutation[2][k];
 	    }
-	  } else if (j + 1 == 1 && pointer[prev][father]->b == 4) {
+	  } else if (j == 1 && pointer[prev][father]->b == 4) {
 	    chr->mpb[1] = pointer[prev][father]->mpb[1];
 	    for (k = 0 ; k < pointer[prev][father]->mpb[1] ; k++) {
 	      chr->mutation[1][k] = pointer[prev][father]->mutation[1][k];
 	    }
-	  } else if (j + 1 == 2) {
+	  } else if (j == 2) {
 	    // do nothing
 	  } else {
 	    cout << "impossible!\n";
