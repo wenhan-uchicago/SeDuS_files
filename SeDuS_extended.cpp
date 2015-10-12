@@ -315,9 +315,18 @@ void EraseFixedMutations(int, int, int); // Erase fixed mutations from chromosom
 int SearchMutation(int, int, int); // Search a given mutation inside muttable (returns its position)
 
 float * SiteFrequencySpectrumPrint(int, int, int, bool); // Calculate pi and S values for a block
+
+// WHC: SiteFrequencySpectrumPrint() for phaseVI
+float * SiteFrequencySpectrumPrint_for_phaseVI(int, int, int, bool);
+
+
 void DivergenceForAll(int, int, int); // Average divergent positions between two blocks in the same chromosome
 
 int DupliFreq(int, int, int); // Calculate Duplication frequency in the population
+
+// WHC: DupliFreq() for phaseVI
+int DupliFreq_for_phaseVI(int, int, int);
+
 int muFrequencyIntWholePopAndSample(int, int, int, int); // Calculate absolute frequency of a given mutation
 int muFrequencyCollapsedCallingFromSample(int, int, int); // Calculates absolute frequency of a given mutation collapsing both blocks from each individual
 
