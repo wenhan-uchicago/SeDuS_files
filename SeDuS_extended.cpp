@@ -1,4 +1,4 @@
-/***************************************************************************
+***************************************************************************
  **                                                                        **
  **  SEDUS, Segmental Duplication Simulator                                **
  **  Copyright (C) 2015 Diego A. Hartasánchez, Marina Brasó-Vives,         **
@@ -88,11 +88,16 @@ int STRUCTUREDTIME = 30; // WHC: STRUCTUREDTIME * N is the number of generations
 // WHC: STRUCTURED_2_TIME * N is the number of generations in Phase IV
 int STRUCTURED_2_TIME = 30;
 
+
 // WHC: PHASE_V_TIME * N is the number of generations of Phase V
 int PHASE_V_TIME = 20;
 int PHASE_V_LENGTH = (int) PHASE_V_TIME * N;
 
-int TIMELENGTH = (int) BIGTIME * N; // Total number of generations (including all phases)
+// WHC: phaseVI time
+int PHASE_VI_TIME = 30;
+int PHASE_VI_LENGTH = (int) PHASE_VI_TIME * N;
+
+int TIMELENGTH = (int) BIGTIME * N; // Total number of generations (including all phases) (not including phaseIV(), phaseV(), phaseVI())
 int BURNIN = (int) BURNINTIME * N; // Number of generations in phase I
 int STRUCTURED = (int) STRUCTUREDTIME * N; // Number of generations in phase II
 
@@ -213,6 +218,9 @@ std::vector<std::vector<int>> duplicontent;// Array indicating which chr carry t
 // WHC: duplicontent for phaseIV()
 vector<vector<int>> duplicontent_2;
 
+// WHC: lose_of_duplicontent[] for phaseVI()
+vector<vector<int>> lose_of_duplicontent;
+
 std::vector<std::vector<bool>> IGCmatrix;// Boolean Matrix codifying if a chromosome undergoes IGC or not 
 
 //// GLOBAL VARIABLES AND STATISTICAL QUANTITIES ////
@@ -222,7 +230,10 @@ int era, run; // t = generation inside each era, era = PROMETHEUS generations in
 
 // WHC: maybe too short for ours
 // int fixationTrajectory[20000 + 1]; // Absolute frequency of the duplication in each generation of fixation process
+// WHC: only allow 30 * 1000?? 30->structured, 1000->#individuals
 int fixationTrajectory[30000 + 1]; // Absolute frequency of the duplication in each generation of fixation process
+
+int phaseVI_trajectory[40000 + 1];
 
 std::vector<bool> multihit; // Record the positions in which a mutation has occurred
 int duplicationFreq; // Absolute frequency of the duplication in the present generation
@@ -230,6 +241,9 @@ bool duFreq; // Duplication has occurred or not
 
 // WHC: Duplication_2 has occurred or not
 bool duFreq_2;
+
+// WHC: whether or not loosing dup_1 has occured
+bool loseFreq;
 
 //// GLOBAL INTERNAL VARIABLES FOR FSL ////
 int MutCount; // Total number of mutations segregating (the fixed ones are erased) in each moment
@@ -259,6 +273,9 @@ void phaseIV(int, int, int, float);
 
 // WHC: for phaseV(); it is a similar function to phaseIII()
 void phaseV(float);
+
+// WHC: for phaseVI(); similar to phaseIV(), but is similating losing dup_1
+void phaseVI(int prev, int pres, float k);
 
 void open_files(); // Opening files
 void close_files(); // Closing files
@@ -400,6 +417,10 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
   duplicontent.resize(2);for(unsigned int i=0;i<duplicontent.size();i++){duplicontent[i].resize(2*N);}
 
   duplicontent_2.resize(2);for(unsigned int i=0;i<duplicontent_2.size();i++){duplicontent_2[i].resize(2*N);}
+
+  // WHC: lose_of_duplicontent[] records which chrom only has 4 blocks instead of 5
+  // (chrom at the beginning carrying 4 blocks, similar to duplicontent[]
+  lose_of_duplicontent.resize(2); for (unsigned int i = 0; i < lose_of_duplicontent.size(); ++i) {lose_of_duplicontent[i].resize(2 * N);}
   
   IGCmatrix.resize(2 * N);for(unsigned int i=0;i<IGCmatrix.size();i++){IGCmatrix[i].resize(PROMETHEUS);}
 
@@ -484,6 +505,8 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       duFreq = false;
 
       duFreq_2 = false;
+
+      loseFreq = false;
       
       for (j = 0; j < BLOCKLENGTH; j++) { multihit[j] = false;}
 
@@ -785,6 +808,100 @@ void phaseV(float k){
 }
 
 /*=====================================================================================================================*/
+
+/*=====================================================================================================================*/
+// WHC: my phaseVI() is a similar function to phaseIV(), but uses its own Generate_phaseVI_trajectory() function
+
+void phaseVI(int prev, int pres, float k) {
+  bool does_print = false;
+  // Generating Fixation Trajectory in a diploid population
+  Generate_phaseVI_trajectory(); // WHC: trajectory (absolute number of chroms carrying 4 blocks instead of 5)
+  
+  // Picking the first chromosome with the lose of dup_1 (eva)
+  int eva = (int) (rand() % (2 * N));
+  for (int i = 0; i < 2 * N; i++) {
+    lose_of_duplicontent[0][i] = i;
+    lose_of_duplicontent[1][i] = i;
+      //    duplicontent_2[0][i] = i;
+      //    duplicontent_2[1][i] = i;
+  }
+  //  duplicontent_2[1][0] = eva;
+  //  duplicontent_2[1][eva] = 0;
+
+  lose_of_duplicontent[1][0] = eva;
+  lose_of_duplicontent[1][eva] = 0;
+  
+  // ================
+  // WHC: lose_of_duplication() is for losing one dup_1 block in one chrom (i.e. eva)
+  // Duplicate eva (create a new block with old mutations...)
+  //  duplication_2(eva,pres,dupType); // WHC: the pres (present) here, will be used as prev (previous) in duplication(); because this is the start of PhaseII
+  lose_of_duplication(eva, pres); // WHC: as will lose dup_1 block from eva chrom, there is no need for the dupType parameter
+  loseFreq = true;
+
+  // BURNIN/PROMETHEUS -> (BURNIN+STRUCTURED)/PROMETHEUS (30 -> 50)
+  // ==========================================================================================================================
+  // WHC: stoped here
+  
+  //  for (era = (int) TIMELENGTH / PROMETHEUS; era < (int) (TIMELENGTH + STRUCTURED_2) / PROMETHEUS; era++) {
+  for (era = (int) (TIMELENGTH + STRUCTURED_2 + PHASE_V_LENGTH) / PROMETHEUS; era < (int) (TIMELENGTH + STRUCTURED_2 + PHASE_V_LENGTH + PHASE_VI_LENGTH) / PROMETHEUS; era++) {
+    
+    // WHC: cout << "TIMELENGTH = " << TIMELENGTH << " " << "TIMELENGTH + STRUCTURED_2 = " << TIMELENGTH + STRUCTURED_2 << '\n';
+    // GENEALOGY (with recombination and taking into account that duplicated chr have duplicated ancestor)
+    //    genealogy(rho * BLOCKLENGTH, 1, (2 * k * BLOCKLENGTH));
+    genealogy_2(rho * BLOCKLENGTH, 2, (3 * k * BLOCKLENGTH)); // WHC: 2 means it is in phaseVI(), not phaseIV()
+    int prom=-1;
+    prev = 0;
+    pres = 1;
+    bool skip = false;
+
+    // WHC: I think it is good until here
+    for (std::vector<fertility_info>::iterator it=fertility_list.begin(); it!=fertility_list.end(); ++it){
+      // as long as PROMETHEUS is an even number, always end up being prov = 0, pres = 1
+      int i = (*it).x;
+      int t = (*it).y;
+      if(prom!=t){
+	if (prev == 1) {prev = 0;pres = 1;} else {prev = 1;pres = 0;}
+      }
+      prom = t;
+      if(skip == false){
+	// WHC: I think parentpicking() works for phaseIV(); same is true for mutation()
+	parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);// PARENT PICKING (with recombination)
+	mutation(mu, i,pres);// MUTATION and CONVERSION (for each fertile chromosome)
+	if(IGCmatrix[i][t]==true && (i%2 == 0 )){
+	  // WHC: if IGC happend, need to pick and mutate the partner chrom
+	  // WHC: and this should only be done once, thus skip = true after
+	  skip = true;
+	  int otheri = i+1;
+	  parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,otheri,t);// PARENT PICKING (with recombination)
+	  mutation(mu, otheri,pres);// MUTATION and CONVERSION (for each fertile chromosome)
+	}
+	conversion(kappa, t, i, pres, donorRatio, sameDifIGC);							
+      }else {skip = false;}
+    }
+    // CALCULATE THE STATISTICS
+    statistics(pres, does_print);
+
+    /* ================================================================ */
+    /* WHC: just to see how many chroms are carrying dup_2 */
+    //    int counting_dup_2 = 0;
+    //    for (int temp = 0; temp < 2 * N; ++temp) {
+    //      if (pointer[pres][temp]->b == 5) {
+    //	++counting_dup_2;
+    //      }
+    //    }
+    //    cout << "The number of chroms that are carrying dup_2 = " << counting_dup_2 << '\n';
+    /* WHC: the end of counting
+    /* ================================================================ */
+    
+  }
+}
+
+
+/*=====================================================================================================================*/
+
+
+
+
 
 //////////////////////////////
 ////  OPEN & CLOSE FILES  ////
@@ -1091,6 +1208,53 @@ void genealogy_2(float probability, int strornot, float IGCprobability) { // Gen
 	ancestry[i][tt] = val; //   WITHOUT presLOSS OF GENERALITY AN INDIV. CAN MATE WITH HIMSELF
       }
     }
+  } else if (strornot == 2) {	// WHC: means it is in phaseVI(), not in phaseIV(); strornot == 0 is not necessary in genealogy_2()
+    /* this is for generating the genealogy for phaseVI, the losing of dup_1 for some chroms */
+
+    int present=0;
+    
+    // WHC: previous = 1 is last present = 1; now becomes previous generation
+    int previous=1;
+    for (int tt=0 ; tt < PROMETHEUS ; tt++){
+      // trajectime is the time in which we are in fixationTrajectory[] array (used to know the number of chr that carry the dup at each time)
+      // WHC: as phaseVI_trajectory[] 
+      int trajectime = PROMETHEUS*(era-((int) (TIMELENGTH + STRUCTURED_2 + PHASE_V_LENGTH) / PROMETHEUS))+tt+1;
+      
+
+      
+      // Randomly mix all the chromosomes of the present generation
+      // WHC: as the next step (choosing a father with dup ramdomly always pick the first several chroms, this step is for randomly picking chroms for having dup
+      
+      for(int i=0 ; i < 2*N ; i++){
+	int val = (int) (rand()%(2*N));
+	int temp = duplicontent_2[present][i];
+	// Duplicontent is an array that indicates which chr carry the duplication (with present and previous lines)
+	duplicontent_2[present][i] = duplicontent_2[present][val];
+	duplicontent_2[present][val] = temp;
+      }
+      // For all the chr that have to have the duplication at this time...
+
+      // WHC: need to generate a fixationTrajectory_2[] for phaseIV() ?
+      for(int i=0 ; i < fixationTrajectory[trajectime] ; i++){
+	// Choose a father randomly (from the previous duplicated population)
+	// WHC: as present chroms which will have dup have been chosen before, this is for randomly picking a father
+	// WHC: remember, i = 0, 1, 2, ...
+	int val=(int) (rand()%(fixationTrajectory[trajectime-1]));
+	
+	// WHC: FOUND a MISTAKE! should be duplicatent_2[]!!
+	// ancestry[duplicontent[present][i]][tt] = duplicontent[previous][val];
+	ancestry[duplicontent_2[present][i]][tt] = duplicontent_2[previous][val];
+      }
+      // For all the chr that have not to have the duplication at this time...
+      for(int i=fixationTrajectory[trajectime] ; i < 2*N ; i++){
+	// Choose a father randomly (from the previous non-duplicated population)
+	int val = (int) (rand()%(2*N-fixationTrajectory[trajectime-1])) + fixationTrajectory[trajectime-1];
+	ancestry[duplicontent_2[present][i]][tt] = duplicontent_2[previous][val];
+      }
+      if (previous==1) {previous=0;  present=1;} else {previous=1;  present=0;}
+    }
+
+    /* the end of this clause */
   }
   // TRACING BACK THE GENEALOGY AND BUILDING FERTILITY MATRIX
   fertility = fertility_ini;
@@ -2623,6 +2787,25 @@ int GenerateFixationTrajectory(int maxTime, int fixationTime) {
   return return_var;
 }
 
+
+/* ================================================================================================ */
+// WHC: generate a random number of individuals with 4 blocks, ranging from 1 to (2*N - 1)
+// WHC: purely random for now, may introduce some more advanced function in the future
+
+void Generate_phaseVI_trajectory() {
+  for (int i = 0; i < (PHASE_VI_LENGTH); ++i) {
+    phaseVI_trajectory[i] = 1 + (rand() % (2 * N - 1)); // generating [1-(2N-1)]
+  }
+
+  //  for (int i = 0; i < 1000; ++i) {
+  //    cout << phaseVI_trajectory[i] << " ";
+  //  }
+  //  cout << endl;
+
+}
+
+
+/* ================================================================================================ */
 
 void print_fertility(){
   ofstream out;
