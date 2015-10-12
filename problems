@@ -35,3 +35,7 @@ Probably due to forgetting adding mutational information into block 0 and block 
 Oct 12, 2015
 
 Because in phaseVI(), a father of #block = 4 could become #block = 5, which does not happen in phaseII(). and this causes the lose_of_duplicontent[] useless
+
+================
+
+This is solved by make changes in parentpicking_for_phaseVI(). If crossover happens in defHS = 0 (block 0 or 1), then information before junction pointer comes from partner; if crossover happens in defHS = 1 or 2 (block 3 or 4), then information before junction point comes from father. ==> to make sure that chr->b = pointer[prev][father]->b always true
