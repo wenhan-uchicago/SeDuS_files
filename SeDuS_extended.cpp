@@ -316,6 +316,10 @@ void statistics_for_phaseVI(int, bool);
 void FSL(int); // Count of All the Segregating, Fixed, Lost and Shared sites
 
 void copychr(int, int, int, int); // Copy a chromosome (when there is no recombination)
+
+// WHC: new copychr() for phaseVI
+void copychr_for_phaseVI(int, int, int, int);
+
 int location(int, int, int, int); // Returns the location of a mutation or point in the mutation vector of a chromosome
 void EraseFixedMutations(int, int, int); // Erase fixed mutations from chromosomes that have them (not necessary to consider them any more)
 int SearchMutation(int, int, int); // Search a given mutation inside muttable (returns its position)
