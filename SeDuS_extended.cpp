@@ -3895,7 +3895,7 @@ void Generate_phaseVI_trajectory() {
     } else if (phaseVI_trajectory[i - 1] > (2 * N) * (3.0 / 4)) { // WHC: when #chrom > 3/4 total chroms
       phaseVI_trajectory[i] = phaseVI_trajectory[i - 1] - 1;
     } else {			// WHC: between 1/4 and 3/4
-    phaseVI_trajectory[i] = 1 + (rand() % (2 * N - 1)); // WHC: generating [1-(2N-1)]; VERY rough for now
+      phaseVI_trajectory[i] = (int) ((2 * N) * (1.0 / 8) + (rand() % ((int) (2 * N * 7.0 / 8)))); // WHC: generating 2*N*[1/8-7/8]; VERY rough for now
     }
   }
 }
