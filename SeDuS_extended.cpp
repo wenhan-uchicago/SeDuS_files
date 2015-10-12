@@ -3384,9 +3384,11 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
 // WHC: new SiteFrequencySpectrumPrint() for phaseVI
 
 float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool does_print) {
-  int s = n;
+  // WHC: I don't understand why they used s = n, instead of s = 2 * n, and it is causing problems when there is only 1 chrom carrying no dup_1
+  //  int s = n;
+  int s = 2 * n;
   int p, i, j, k, index, m, number, duplicationFreq;
-  int xi[2 * s], list [2 * N];
+  int xi[s], list [2 * N];
   float value, mufreq;
   static float results[] = {0, 0};
 
@@ -3399,7 +3401,7 @@ float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool doe
     duplicationFreq = DupliFreq_for_phaseVI(h, 2, n);
 
     // WHC: why divided by 2?? Because DupliFreq() returns the number of chroms, but s is the number of individuals!!
-    s = (int) duplicationFreq/2;
+    //    s = (int) duplicationFreq/2;
   } else if (block == 4) {	// WHC: newly added
     // WHC: as this is in phaseVI(), don't need this
   }
@@ -3418,7 +3420,8 @@ float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool doe
 	// WHC: so, it is a population-level frequency, not a sample-level frequency as here
 	// WHC: and this time, muFrequencyIntWholePopAndSample() will just do sample-level based on sample[]
 	mufreq = (float) muFrequencyIntWholePopAndSample(h, muttable[m].position, muttable[m].block,n);
-	mufreq = (mufreq)/(2*s);
+	//	mufreq = (mufreq)/(2*s);
+	mufreq = (mufreq)/(s);
 	if(mufreq != 0){
 	  list[number] = muttable[m].position;
 	  number++; // number = segregatingSites in sample
@@ -3436,7 +3439,7 @@ float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool doe
 
   int prototype[number];
   int mutationCounts[number];
-  for (index = 0; index < 2 * s; index++) {
+  for (index = 0; index < s; index++) {
     xi[index] = 0;
   }
 
@@ -3474,7 +3477,7 @@ float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool doe
   // THIS FUNCTION PRINTS THE CONTENT OF MUTATIONSNEWFILE
   if(does_print == true){
     int pos;
-    for (i = 0; i < 2 * s; i++) {
+    for (i = 0; i < s; i++) {
       for (j = 0; j < number; j++) {
 	pos = prototype[j];
 	k = location(prototype[j], h, sample[i], block);
@@ -3501,7 +3504,7 @@ float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool doe
   //xi[i] IS AN ARRAY THAT COUNTS THE NUMBER OF POLYMORPHIC SITES THAT HAVE i COPIES OF THE MUTATION
   // WHC: so the output file SFS_x_ID means -- 12, 10, 20,... there are 12 polymophic sites with 1 copy, 10 with 2 copies, 20 with 3...
   
-  for (i = 1; i < 2 * s; i++) {
+  for (i = 1; i < s; i++) {
     for (j = 0; j < number; j++) {
       if (mutationCounts[j] == i) {
 	xi[i]++;
@@ -3510,7 +3513,7 @@ float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool doe
   }
 
   if(does_print==true){
-    for (i = 1; i < 2 * s; i++) {
+    for (i = 1; i < s; i++) {
       SFS[block] << xi[i] << " ";
     }
     SFS[block] << "\n";
@@ -3518,10 +3521,10 @@ float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool doe
 
   // CALCULATE AVERAGE PAIRWISE DIFFERENCE
   // WHC: what does this mean??
-  for (i = 1, value = 0; i < 2 * s; i++) {
-    value += (float) (i * (2 * s - i) * xi[i]);
+  for (i = 1, value = 0; i < s; i++) {
+    value += (float) (i * (s - i) * xi[i]);
   }
-  value /= (s * (2 * s - 1));
+  value /= ((s / 2) * (s - 1));
   results[1] = value;
   return results;
 
