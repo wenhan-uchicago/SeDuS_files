@@ -58,14 +58,14 @@ using namespace std;
 //// SIMULATION PRINCIPAL VARIABLES ////
 ////////////////////////////////////////
 
-int N = 100; // Population size
+int N = 200; // Population size
 
 // WHC: PROMETHEUS should be an even number
 int PROMETHEUS = 100; // Number of generations for each genealogy
 
 int SUPERTIME = 1; // Number of simulations per execution
 int BLOCKLENGTH = 10000; // Block length
-int SAMPLE = 5; // Sample size
+int SAMPLE = 50; // Sample size
 #define MUTTABLESIZE 1000000 // Maximum number of mutations (size of muttable)
 
 // #define B 3 // Maximum number of blocks per chromosome
@@ -115,6 +115,8 @@ int numHS = 3; // WHC: Number of hotspots, single_2 is a scaled hopspot represen
 int crossoverBegin[maxNumOfHS] = {0, 3 * BLOCKLENGTH, 4 * BLOCKLENGTH}; // Start point of crossover regions
 int crossoverEnd[maxNumOfHS] = {3 * BLOCKLENGTH, 4 * BLOCKLENGTH, 5 * BLOCKLENGTH}; // End point of crossover regions
 // WHC: artificially selected values, to represent 2MB region as crossover hotspot
+
+// WHC: REMEMBER!!! need to change crossoverRatio[] in int main(), before phaseIV()
 float crossoverRatio[maxNumOfHS] = {0.15, 0.8, 0.05}; // Relative weights of crossover regions
 
 string letter = ""; // Simulation ID
@@ -577,9 +579,11 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       //      crossoverEnd[maxNumOfHS] = {3 * BLOCKLENGTH, 4 * BLOCKLENGTH, 5 * BLOCKLENGTH}; // End point of crossover regions
 
       //      crossoverRatio[maxNumOfHS] = {0.15, 0.8, 0.05}; // Relative weights of crossover regions
-      crossoverRatio[0] = 0.15;
-      crossoverRatio[1] = 0.8;
-      crossoverRatio[2] = 0.05;
+
+      // need to change this here
+      crossoverRatio[0] = 0.01;
+      crossoverRatio[1] = 0.98;
+      crossoverRatio[2] = 0.01;
       
       
       /* PHASE IV: STRUCTURED_2 TRAJECTORY */
@@ -772,6 +776,7 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
     // WHC: cout << "TIMELENGTH = " << TIMELENGTH << " " << "TIMELENGTH + STRUCTURED_2 = " << TIMELENGTH + STRUCTURED_2 << '\n';
     // GENEALOGY (with recombination and taking into account that duplicated chr have duplicated ancestor)
     //    genealogy(rho * BLOCKLENGTH, 1, (2 * k * BLOCKLENGTH));
+    cout << "running phaseIV() era = " << era << '\n';
     genealogy_2(rho * BLOCKLENGTH, 1, (3 * k * BLOCKLENGTH));
     int prom=-1;
     prev = 0;
@@ -830,6 +835,8 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
 void phaseV(float k){
   bool does_print = false;
   for (era = (int) (TIMELENGTH + STRUCTURED_2) / PROMETHEUS; era < (int) (TIMELENGTH + STRUCTURED_2 + PHASE_V_LENGTH) / PROMETHEUS; era++) {
+
+    cout << "Running phaseV era = " << era << '\n';
     // GENEALOGY (all chr have the duplication, there are no two populations to take into account)
     genealogy_2(rho * BLOCKLENGTH, 0, (3 * k * BLOCKLENGTH)); // WHC: genealogy_2(x, 0, x), the 0 means it is not in phaseIV()
     int prom=-1;
@@ -905,6 +912,8 @@ void phaseVI(int prev, int pres, float k) {
   
   //  for (era = (int) TIMELENGTH / PROMETHEUS; era < (int) (TIMELENGTH + STRUCTURED_2) / PROMETHEUS; era++) {
   for (era = (int) (TIMELENGTH + STRUCTURED_2 + PHASE_V_LENGTH) / PROMETHEUS; era < (int) (TIMELENGTH + STRUCTURED_2 + PHASE_V_LENGTH + PHASE_VI_LENGTH) / PROMETHEUS; era++) {
+
+    cout << "Running phaseVI, era = " << era << '\n';
     
     // WHC: cout << "TIMELENGTH = " << TIMELENGTH << " " << "TIMELENGTH + STRUCTURED_2 = " << TIMELENGTH + STRUCTURED_2 << '\n';
     // GENEALOGY (with recombination and taking into account that duplicated chr have duplicated ancestor)
@@ -948,6 +957,7 @@ void phaseVI(int prev, int pres, float k) {
 
     /* ================================================================ */
     /* WHC: just to see how many chroms are carrying dup_2 */
+    /*
     int counting_losing_dup_1 = 0, counting_having_dup_1 = 0;
         for (int temp = 0; temp < 2 * N; ++temp) {
           if (pointer[pres][temp]->b == 4) {
@@ -958,6 +968,7 @@ void phaseVI(int prev, int pres, float k) {
         }
         cout << "The number of chroms that are not carrying dup_1 = " << counting_losing_dup_1 << '\n';
 	cout << "The number of chroms that are carrying dup_1 = " << counting_having_dup_1 << '\n';
+    */
     /* WHC: the end of counting
     /* ================================================================ */
     
