@@ -912,13 +912,16 @@ void phaseVI(int prev, int pres, float k) {
 
     /* ================================================================ */
     /* WHC: just to see how many chroms are carrying dup_2 */
-        int counting_losing_dup_1 = 0;
+    int counting_losing_dup_1 = 0, counting_having_dup_1 = 0;
         for (int temp = 0; temp < 2 * N; ++temp) {
           if (pointer[pres][temp]->b == 4) {
-    	++counting_losing_dup_1;
-          }
+	    ++counting_losing_dup_1;
+          } else if (pointer[pres][temp]->b == 5) {
+	    ++counting_having_dup_1;
+	  } else { cout << "WRONG HERE!\n"; exit(0); }
         }
         cout << "The number of chroms that are not carrying dup_1 = " << counting_losing_dup_1 << '\n';
+	cout << "The number of chroms that are carrying dup_1 = " << counting_having_dup_1 << '\n';
     /* WHC: the end of counting
     /* ================================================================ */
     
