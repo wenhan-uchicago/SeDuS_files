@@ -307,6 +307,10 @@ void conversion_for_phaseVI(float, int, int, int, float (*donorRatio)[5], float)
 // WHC: conversion() for phaseVI()
 
 void statistics(int, bool); // Execution of all the statistic calculations (for each Era)
+
+// WHC: statistic() for phaseVI
+void statistics_for_phaseVI(int, bool);
+
 void FSL(int); // Count of All the Segregating, Fixed, Lost and Shared sites
 
 void copychr(int, int, int, int); // Copy a chromosome (when there is no recombination)
@@ -917,7 +921,7 @@ void phaseVI(int prev, int pres, float k) {
       } else {skip = false;}
     }
     // CALCULATE THE STATISTICS
-    statistics(pres, does_print);
+    statistics_for_phaseVI(pres, does_print);
 
     /* ================================================================ */
     /* WHC: just to see how many chroms are carrying dup_2 */
@@ -2856,7 +2860,8 @@ void statistics_for_phaseVI(int prev, bool does_print) {
 
   // WHC: FSL() will delete fixed/lost mutations
   // WHC: and make a new muttable[]
-  
+
+  // WHC: as location() and muFrequencyIntWholePopAndSample() should work with block = 2, I think FSL() will work too
   FSL(prev); // Creating the summary vector fixedLostForAll
   // INFORMATION RECOVERED FROM SAMPLES
   
@@ -2888,6 +2893,7 @@ void FSL(int hh) {
 
   for (m = 0; m < MutCount; m++) {
     muttable[m].frequency = muFrequencyIntWholePopAndSample(hh, muttable[m].position, muttable[m].block, N);
+    // WHC: What if this block is lost, should I use (N * 2) or the #chroms carrying this block????
     muttable[m].frequency = ((float) muttable[m].frequency) / (N * 2);
   }
   for (m = 0, mm = 0; m < MutCount; m++) {
@@ -3389,16 +3395,21 @@ float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool doe
 
   if(block == 2){
     //duplicationFreq = DupliFreq(prev, 2, n);
+    // WHC: duplicationFreq is the number of chroms that are carrying dup_1, 2 * N - duplicationFreq = #chroms without block 2 (dup_1)
     duplicationFreq = DupliFreq_for_phaseVI(h, 2, n);
 
     // WHC: why divided by 2?? Because DupliFreq() returns the number of chroms, but s is the number of individuals!!
     s = (int) duplicationFreq/2;
   } else if (block == 4) {	// WHC: newly added
-    duplicationFreq = DupliFreq(h, 4, n);
-    if (duplicationFreq != 2 * n) { cout << "something wrong in counting dup_fre.\n"; exit(0);  }
-    s = (int) duplicationFreq / 2;
+    // WHC: as this is in phaseVI(), don't need this
   }
-  if (s == 0) { return results; }
+  
+  if (s == 0) {
+    // WHC: as this is in pahseVI(), this should not happen (and also due to my limitation that chroms not carrying dup_1 ranges from 1 to (2 * N - 1)
+    cout << "something wrong here here.\n";
+    exit(0);
+    return results;
+  }
 
   for (m = 0, number = 0; m < MutCount; m++) {
     if (block == muttable[m].block && muttable[m].frequency != 0) {
