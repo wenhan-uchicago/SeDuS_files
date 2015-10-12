@@ -3607,7 +3607,7 @@ void Generate_phaseVI_trajectory() {
 
   for (int i = 0; i < 100; ++i) {
     cout << "phaseVI_trajectory is:\t";
-    cout << phaseVI_trajectory[i];
+    cout << phaseVI_trajectory[i] << '\n';
   }
   cout << endl;
 
