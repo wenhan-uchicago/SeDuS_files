@@ -39,3 +39,7 @@ Because in phaseVI(), a father of #block = 4 could become #block = 5, which does
 ================
 
 Because I am using (1 + rand() % (2 * N - 1)) for generating the number of chroms carrying not dup_1 for next generation, therefore, maybe the 1st generation has 1 chrom without dup_1, the next may have 199 chroms carrying no dup_1. this should be the causes of the huge drop of divergence rate
+
+================
+
+It seems that SiteFrequencySpectrumPrint_for_phaseVI()'s return results, are still causing troubles. maybe write it without a whole-scope float results[]? Maybe consider using a reference?
