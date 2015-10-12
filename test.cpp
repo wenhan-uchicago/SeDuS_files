@@ -20,15 +20,26 @@
 using namespace std;
 
 int phaseVI_trajectory[1000];
+int N = 100;
 
-void Generate_phaseVI_trajectory() {
-  for (int i = 0; i < 1000; ++i) {
-    phaseVI_trajectory[i] = 1 + (rand() % (2 * N - 1)); // generating [1-(2N-1)]
+int main() {
+
+
+  phaseVI_trajectory[0] = 1;
+  for (int i = 1; i < 1000; ++i) {
+    if (phaseVI_trajectory[i - 1] < (2 * N) * (1.0 / 4)) { // WHC: when #chrom < 1/4 total chroms
+      phaseVI_trajectory[i] = phaseVI_trajectory[i - 1] + 1;
+    } else if (phaseVI_trajectory[i - 1] > (2 * N) * (3.0 / 4)) { // WHC: when #chrom > 3/4 total chroms
+      phaseVI_trajectory[i] = phaseVI_trajectory[i - 1] - 1;
+    } else {			// WHC: between 1/4 and 3/4
+    phaseVI_trajectory[i] = 1 + (rand() % (2 * N - 1)); // WHC: generating [1-(2N-1)]; VERY rough for now
+    }
   }
 
-  //  for (int i = 0; i < 1000; ++i) {
-  //    cout << phaseVI_trajectory[i] << " ";
-  //  }
-  //  cout << endl;
-
+  for (int i = 0; i < 1000; ++i) {
+    cout << phaseVI_trajectory[i] << " ";
+  }
+  cout << endl;
+  return 0;
 }
+

@@ -3862,11 +3862,13 @@ int GenerateFixationTrajectory(int maxTime, int fixationTime) {
 
 void Generate_phaseVI_trajectory() {
 
+  /* ================================================================ */
   /*
+
     WHC: when I use  for (int i = 1; i < (PHASE_VI_LENGTH); ++i) {} clause, the last generation always yields 0 dup_1
     solved when I use for (int i = 1; i < (PHASE_VI_LENGTH) + 1; ++i) {} clause
     !! As in their phaseII(), GenerateFixationTrajectory(STRUCTURED + 1, ), there is a +1 there!
-  */
+
   
   phaseVI_trajectory[0] = 1;
   
@@ -3881,6 +3883,21 @@ void Generate_phaseVI_trajectory() {
   }
   cout << endl;
 
+  return;  
+  WHC: will abandom this random method for now
+
+  /* ================================================================ */  
+
+  phaseVI_trajectory[0] = 1;
+  for (int i = 1; i < (PHASE_VI_LENGTH) + 1; ++i) {
+    if (phaseVI_trajectory[i - 1] < (2 * N) * (1.0 / 4)) { // WHC: when #chrom < 1/4 total chroms
+      phaseVI_trajectory[i] = phaseVI_trajectory[i - 1] + 1;
+    } else if (phaseVI_trajectory[i - 1] > (2 * N) * (3.0 / 4)) { // WHC: when #chrom > 3/4 total chroms
+      phaseVI_trajectory[i] = phaseVI_trajectory[i - 1] - 1;
+    } else {			// WHC: between 1/4 and 3/4
+    phaseVI_trajectory[i] = 1 + (rand() % (2 * N - 1)); // WHC: generating [1-(2N-1)]; VERY rough for now
+    }
+  }
 }
 
 
