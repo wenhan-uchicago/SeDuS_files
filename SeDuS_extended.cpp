@@ -297,6 +297,9 @@ void lose_of_duplication(int, int);
 
 void mutation(float, int, int); // For each fertile chromosome decide if a mutation happens and execute it if necessary
 
+// WHC: mutation() for phaseVI
+void mutation_for_phaseVI(float, int, int);
+
 // WHC: will use pointer donorRatio instead of float
 void conversion(float, int, int, int, float (*donorRatio)[5], float); // Only when duFreq is true. For each fertile chromosome decide if conversion happens and execute it if necessary
 
@@ -550,6 +553,10 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       /* PHASE V: RESOLUTION after 2nd duplication */
       cout << "PHASE V" << '\n';
       phaseV(kappa);
+
+      /* PHASE VI: LOSING dup_1 */
+      cout << "PHASE VI" << '\n';
+      phaseVI(0, 1, kappa);
       
       for (j = 0; j < B+2; j++) {
       	for (o = 0; o < numofsamples; o++) {samplefile[j][o][0] << "\n";samplefile[j][o][1] << "\n";}
@@ -879,16 +886,17 @@ void phaseVI(int prev, int pres, float k) {
 	// WHC: has to decide which blcok does the crossover happen, before decidiing #blocks for child chrom!!!
 	
 	parentpicking_for_phaseVI(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);// PARENT PICKING (with recombination)
-	mutation(mu, i,pres);// MUTATION and CONVERSION (for each fertile chromosome)
+	//	mutation(mu, i,pres);// MUTATION and CONVERSION (for each fertile chromosome)
+	mutation_for_phaseVI(mu, i, pres);
 	if(IGCmatrix[i][t]==true && (i%2 == 0 )){
 	  // WHC: if IGC happend, need to pick and mutate the partner chrom
 	  // WHC: and this should only be done once, thus skip = true after
 	  skip = true;
 	  int otheri = i+1;
-	  parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,otheri,t);// PARENT PICKING (with recombination)
-	  mutation(mu, otheri,pres);// MUTATION and CONVERSION (for each fertile chromosome)
+	  parentpicking_for_phaseVI(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,otheri,t);// PARENT PICKING (with recombination)
+	  mutation_for_phaseVI(mu, otheri,pres);// MUTATION and CONVERSION (for each fertile chromosome)
 	}
-	conversion(kappa, t, i, pres, donorRatio, sameDifIGC);							
+	conversion_for_phaseVI(kappa, t, i, pres, donorRatio, sameDifIGC);							
       }else {skip = false;}
     }
     // CALCULATE THE STATISTICS
@@ -896,13 +904,13 @@ void phaseVI(int prev, int pres, float k) {
 
     /* ================================================================ */
     /* WHC: just to see how many chroms are carrying dup_2 */
-    //    int counting_dup_2 = 0;
-    //    for (int temp = 0; temp < 2 * N; ++temp) {
-    //      if (pointer[pres][temp]->b == 5) {
-    //	++counting_dup_2;
-    //      }
-    //    }
-    //    cout << "The number of chroms that are carrying dup_2 = " << counting_dup_2 << '\n';
+        int counting_losing_dup_1 = 0;
+        for (int temp = 0; temp < 2 * N; ++temp) {
+          if (pointer[pres][temp]->b == 4) {
+    	++counting_losing_dup_1;
+          }
+        }
+        cout << "The number of chroms that are carrying dup_2 = " << counting_losing_dup_1 << '\n';
     /* WHC: the end of counting
     /* ================================================================ */
     
@@ -2001,6 +2009,7 @@ void mutation(float probability, int i, int pres) {
   chr = pointer[pres][i];
 
   for (j = 0; j < chr->b; j++) {
+
     mutEvents=0;
     p = rand() / ((float) RAND_MAX + 1);
     if (p < (probability * BLOCKLENGTH)) { mutEvents++;
@@ -2099,6 +2108,121 @@ void mutation(float probability, int i, int pres) {
   }
 
 }
+
+
+/* ================================================================ */
+// WHC: new mutation() for phaseVI()
+
+void mutation_for_phaseVI(float probability, int i, int pres) {
+  int j, k, position, val, mutEvents;
+  float p;
+  chrom * chr;
+  chr = pointer[pres][i];
+
+  // WHC: just slightly adjust this void mutation(), by skiping j == 2 if chr->b == 4
+  for (j = 0; j < 5; j++) {
+    if (chr->b == 4 && j == 2) { continue; }
+    
+    mutEvents=0;
+    p = rand() / ((float) RAND_MAX + 1);
+    if (p < (probability * BLOCKLENGTH)) { mutEvents++;
+      if (p < pow((probability * BLOCKLENGTH), 2)) { mutEvents++;
+	if (p < pow((probability * BLOCKLENGTH), 3)) { mutEvents++;
+	  if (p < pow((probability * BLOCKLENGTH),4)) { mutEvents++;
+	  }
+	}
+      }
+    }
+    for(int muts=0; muts < mutEvents; muts++){
+      // Randomly choose one NEW mutation position
+      do {
+	position = (int) (rand() % (BLOCKLENGTH));
+      } while (multihit[position] == true);
+      multihit[position] = true;
+
+      // If there are no previous mutations or if the new mutation fall behind all previous ones...,
+      if (chr->mpb[j] == 0 || position > chr->mutation[j][chr->mpb[j] - 1]) {
+	// Simply add the mutation
+	chr->mutation[j][chr->mpb[j]] = position;
+	chr->mpb[j]++;
+      }// Otherwise, shift the mutations one position so that mutations appear ordered in the chr.mutation array
+      // WHC: otherwise shift many positions; I think could be done by stable_sort()?
+      else {
+	val = location(position, pres, i, j);
+	for (k = chr->mpb[j]; k > val; k--) {
+	  // WHC: from last mutation, move everything 1 position backword, until new mutation
+	  chr->mutation[j][k] = chr->mutation[j][k - 1];
+	}
+	chr->mutation[j][val] = position;
+	chr->mpb[j]++;
+      }
+      // ELABORATES MUTTABLE
+      muttable[MutCount].position = position;
+      muttable[MutCount].block = j;
+      MutCount++;
+
+
+      // WHC: I think this step is for making sure new mutation could only arise on non-polymorphic positions, on both blocks
+      // IF MUTATION APPEARS IN BLOCK 0 OR 2, COPY THE MUTATION TO THE OTHER BLOCK
+      // if (j == 0 && duFreq == true) {
+      if (j == 0 && duFreq == true && duFreq_2 == false) {
+	// WHC: in phaseII() but not in phaseIV()
+	muttable[MutCount].block = 2;
+	muttable[MutCount].position = muttable[MutCount - 1].position;
+	MutCount++;
+      } else if (j == 0 && duFreq_2 == true) {
+	// WHC: if is in phaseIV(), then should copy information from 0 to 2 and 4
+	// WHC: copy to dup_1
+	muttable[MutCount].block = 2;
+	muttable[MutCount].position = muttable[MutCount - 1].position;
+	MutCount++;
+
+	// WHC: copy to dup_2
+	muttable[MutCount].block = 4;
+	muttable[MutCount].position = muttable[MutCount - 2].position;
+	MutCount++;
+      }
+      
+      //      if (j == 2) {
+      if (j == 2 && duFreq_2 == false) {
+	// WHC: in phaseII() but not in phaseIV()
+	muttable[MutCount].block = 0;
+	muttable[MutCount].position = muttable[MutCount - 1].position;
+	MutCount++;
+      } else if (j == 2 && duFreq_2 == true) {
+	// WHC: in phaseIV()
+	// WHC: or in phaseV()
+	// WHC: copy to dup_1
+	muttable[MutCount].block = 0;
+	muttable[MutCount].position = muttable[MutCount - 1].position;
+	MutCount++;
+
+	// WHC: copy to dup_2
+	muttable[MutCount].block = 4;
+	muttable[MutCount].position = muttable[MutCount - 2].position;
+	MutCount++;
+      }
+
+      // WHC: FORGOT the j == 4!!!! Causing trouble in muttable[]!!!! BUT, I am so happy figuring this out!!!
+
+      if (j == 4) {
+	// WHC: must be in or after phaseIV()
+	muttable[MutCount].block = 0;
+	muttable[MutCount].position = muttable[MutCount - 1].position;
+	MutCount++;
+
+	// WHC: copy to dup_2
+	muttable[MutCount].block = 2;
+	muttable[MutCount].position = muttable[MutCount - 2].position;
+	MutCount++;
+      }
+      
+    }
+  }
+
+}
+
+/* ================================================================ */
 
 // void conversion(float probability, int t, int i, int pres, float donorRatio, float sameDifIGC) {
 
@@ -2376,6 +2500,247 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
     }
   }
 }
+
+
+/* ================================================================ */
+// WHC: conversion() for phaseVI()
+void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*p_donorRatio)[5], float sameDifIGC) {
+  int k, partner, donor, receptor, chrDonor, chrReceptor, IGC, vald0, valdf, valr0, valrf, val, junction, tractlength, eqmut, otherk, differences;
+
+  float p;
+  chrom * chr1, * chr2;
+  chr1 = pointer[pres][i];
+  IGC = 0;
+
+
+
+  
+  // If the chr has duplicated block
+  //  if (chr1[0].b == 3) {
+  // WHC: as long as #blocks >= 3
+  // WHC: REMEMBER, #blocks also determine which 2 pairs of duplications could be selected
+  
+  if (chr1->b >= 4) {
+    if((sameDifIGC!=1) && (IGCmatrix[i][t]==true)){ // IGC on different chroms
+      IGC = 1;
+
+      if (i % 2 == 0) {
+	partner = (i + 1);
+      } else {
+	partner = (i - 1);
+      }			
+      chr2 = pointer[pres][partner];
+
+      /* ================================================================================================ */
+      // beginning of new donor/receptor selection method
+      
+      // WHC: randomly choose a pair of duplicated blocks, depending on the number of blocks chrom has
+      // WHC: also, return value of donorRatio
+      int block_1, block_2;
+      float donorRatio;
+      
+      if (chr1->b == 4 || chr2->b == 4) { // WHC: pick 2 pairs
+	// WHC: IGC could only happend between ori and dup_2
+	block_1 = ori_index;
+	block_2 = dup_2;
+	donorRatio = p_donorRatio[0][2];
+      } else if (chr1->b == 5 || chr2->b == 5) {	// WHC: could pick ori, dup_1, dup_2 blocks; means already in phaseIV(), at least 3 blocks for any chrom
+	// WHC: randomly generate 0, 1, 2
+	// WHC: which correspond to ori&dup_1, ori&dup_2 and dup_1&dup_2 pairs
+	int which_pair = rand() % 3;
+
+	if (which_pair == 0) {	// WHC: ori&dup_1 pair
+	  block_1 = ori_index;
+	  block_2 = dup_1;
+	  donorRatio = p_donorRatio[0][2];
+	} else if (which_pair == 1) { // WHC: ori&dup_2 pair
+	  block_1 = ori_index;
+	  block_2 = dup_2;
+	  donorRatio = p_donorRatio[0][4];
+	} else if (which_pair == 2) { // WHC: dup_1&dup_2 pair
+	  block_1 = dup_1;
+	  block_2 = dup_2;
+	  donorRatio = p_donorRatio[2][4];
+	} else {			// WHC: wrong
+	  cout << "something is wrong in void conversion()\n";
+	  exit(0);
+	}
+      } else {
+	cout << "wrong on void conversion_for_phaseVI() 2\n";
+	exit(0);
+      }
+
+      // Determines which block will be the donor and which will be the receptor
+      p = rand() / ((float) RAND_MAX + 1);
+      if (p < donorRatio) {
+	donor = block_1;
+	receptor = block_2;
+      } else {
+	donor = block_2;
+	receptor = block_1;
+      }
+
+      //      if (chr2->b == 5 || chr1->b == 5) {; not necessary anymore
+	p = rand() / ((float) RAND_MAX + 1); // WHC: randomly choose from which chromosome to which
+	if (p < 0.5) {
+	  chrDonor = i;
+	  chrReceptor = partner;
+	} else {
+	  chrDonor = partner;
+	  chrReceptor = i;
+	}
+
+
+      // end of new donor/receptor selection method
+      /* ================================================================================================ */
+      
+    } else {
+      // WHC: if IGCmatrix[i][t] == false, this means that no IGC between chroms will happen, due to void genealogy()
+      // WHC: but IGC could still happen within chrom
+      p = rand() / ((float) RAND_MAX + 1);
+      // WHC: should distinguish between 2 duplications and 3 duplications
+      
+      if (chr1->b == 4) {
+	int block_1 = ori_index;
+	int block_2 = dup_2;
+	float donorRatio = p_donorRatio[0][4];
+
+	if (p < (2 * probability * BLOCKLENGTH * sameDifIGC)) {
+	  IGC = 1;
+	  // Determines which block will be the donor and which will be the receptor
+	  p = rand() / ((float) RAND_MAX + 1);
+	  if (p < donorRatio) {
+	    donor = block_1;
+	    receptor = block_2;
+	  } else {
+	    donor = block_2;
+	    receptor = block_1;
+	  }
+	  chrDonor = i;
+	  chrReceptor = i;
+	}
+      } else if (chr1->b == 5) {
+	if (p < (3 * probability * BLOCKLENGTH * sameDifIGC)) { // WHC: should this be 3? Because we have 3 blocks...
+	  IGC = 1;
+	  // Determines which block will be the donor and which will be the receptor
+	  int which_pair = rand() % 3;
+	  int block_1, block_2;
+	  float donorRatio;
+	  if (which_pair == 0) {	// WHC: ori&dup_1 pair
+	    block_1 = ori_index;
+	    block_2 = dup_1;
+	    donorRatio = p_donorRatio[0][2];
+	  } else if (which_pair == 1) { // WHC: ori&dup_2 pair
+	    block_1 = ori_index;
+	    block_2 = dup_2;
+	    donorRatio = p_donorRatio[0][4];
+	  } else if (which_pair == 2) { // WHC: dup_1&dup_2 pair
+	    block_1 = dup_1;
+	    block_2 = dup_2;
+	    donorRatio = p_donorRatio[2][4];
+	  } else {			// WHC: wrong
+	    cout << "something is wrong in void conversion()\n";
+	    exit(0);
+	  }
+
+	  p = rand() / ((float) RAND_MAX + 1);
+	  if (p < donorRatio) {
+	    donor = block_1;
+	    receptor = block_2;
+	  } else {
+	    donor = block_2;
+	    receptor = block_1;
+	  }
+	  chrDonor = i;
+	  chrReceptor = i;
+
+	}
+      }
+    }
+
+    // WHC: not changed, remains the same; I assume it will work :)
+    
+    if(IGC == 1) {
+      chr1 = pointer[pres][chrDonor];
+      chr2 = pointer[pres][chrReceptor];
+      // Determines conversion initiation point
+      junction = (int) (rand() % (BLOCKLENGTH));
+      // Determines gene conversion tract length through function tractpql()
+      // WHC: what if this lies outside of a block???
+      // WHC: it just doesn't copy the mutation outside this particular block; because mutation[BLOCK][mutation_index]
+      tractlength = tractpql(meanTractLength);
+      // If tractlength is an odd number, we must correct junction in order for gene conversion to be balanced
+      if(tractlength%2 != 0){
+	p = rand() / ((float) RAND_MAX + 1);
+	if(p < 0.5){
+	  junction += 1;
+	}
+      }
+	
+      // Tests for MEPS, 100% identity tract to allow conversion
+      vald0 = location(junction - meps/2, pres, chrDonor, donor);
+      valdf = location(junction + meps/2, pres, chrDonor, donor);
+      valr0 = location(junction - meps/2, pres, chrReceptor, receptor);
+      valrf = location(junction + meps/2, pres, chrReceptor, receptor);
+      val = (valdf - vald0)-(valrf - valr0); // val is the number of positions to shift
+      eqmut = 0;
+      // If the sequences have the same number of mutations in the total identity region
+      if (val == 0){
+	for (k = 0; k < (valdf - vald0); k++) {
+	  if (chr2[0].mutation[receptor][k + valr0] == chr1[0].mutation[donor][k + vald0]){
+	    eqmut++;
+	  }
+	}
+	// If the sequences have the same mutations in the total identity region
+	if (eqmut == (valdf - vald0)){
+	  // Determines location of the delimiting mutations for each block (donor and receptor)
+	  vald0 = location(junction - 0.5 * tractlength, pres, chrDonor, donor);
+	  valdf = location(junction + 0.5 * tractlength, pres, chrDonor, donor);
+	  valr0 = location(junction - 0.5 * tractlength, pres, chrReceptor, receptor);
+	  valrf = location(junction + 0.5 * tractlength, pres, chrReceptor, receptor);
+	  val = (valdf - vald0)-(valrf - valr0); // val is the number of positions to shift
+	  // Calculates differences between both sequences
+	  differences = 0;
+	  //Corrected bug; it used to say k<=
+	  for (k = vald0; k < valdf; k++) {
+	    otherk = location(chr1[0].mutation[donor][k], pres, chrReceptor, receptor);
+	    if (chr2[0].mutation[receptor][otherk] != chr1[0].mutation[donor][k]){
+	      differences++;
+	    }
+	  }
+	  //Corrected bug; it used to say k<=
+	  for (k = valr0; k < valrf; k++) {
+	    otherk = location(chr2[0].mutation[receptor][k], pres, chrDonor, donor);
+	    if (chr1[0].mutation[donor][otherk] != chr2[0].mutation[receptor][k]){
+	      differences++;
+	    }
+	  }
+	  // If differences do not exceed the similarity threshold for all the tractlength (MESH 2.0)
+	  if(differences <= tractlength*(1-(similarityInConvTract/100))){
+	    // Change receptor mutations in chr2[0].mutation[receptor][] array
+	    if (val > 0) {
+	      for (k = chr2[0].mpb[receptor] + val - 1; k >= valrf + val; k--) {
+		chr2[0].mutation[receptor][k] = chr2[0].mutation[receptor][k - val];
+	      }
+	    }
+	    if (val < 0) {
+	      for (k = valrf + val; k < chr2[0].mpb[receptor] + val; k++) {
+		chr2[0].mutation[receptor][k] = chr2[0].mutation[receptor][k - val];
+	      }
+	    }
+	    for (k = 0; k < (valdf - vald0); k++) {
+	      chr2[0].mutation[receptor][k + valr0] = chr1[0].mutation[donor][k + vald0];
+	    }
+	    // Change receptor chr2[0].mpb[] array
+	    chr2[0].mpb[receptor] += val;
+	  }
+	}
+      }
+    }
+  } else { cout << "mistake happens.\n"; exit(0); }
+}
+
+/* ================================================================ */
 
 //////////////////////
 ////  STATISTICS  ////
