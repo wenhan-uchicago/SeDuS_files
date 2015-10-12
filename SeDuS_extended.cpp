@@ -94,7 +94,7 @@ int PHASE_V_TIME = 20;
 int PHASE_V_LENGTH = (int) PHASE_V_TIME * N;
 
 // WHC: phaseVI time
-int PHASE_VI_TIME = 30;
+int PHASE_VI_TIME = 40;
 int PHASE_VI_LENGTH = (int) PHASE_VI_TIME * N;
 
 int TIMELENGTH = (int) BIGTIME * N; // Total number of generations (including all phases) (not including phaseIV(), phaseV(), phaseVI())
@@ -1731,7 +1731,11 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
       } else if (((minblock * BLOCKLENGTH) < end) && ((minblock * BLOCKLENGTH) <= beg)) {
 	// WHC: this steps looks like a "lazy" step; (NO! I was wrong! Imagine if a hot block on block 3 with 100% proposion!
 	// WHC: (then, if we don't have block 3, we don't have recombination!)
-	copychr(prev, father, pres, i);
+
+	// WHC: WRONG!! copychr is wrong!!!
+	/* ================================================================ */
+	//	copychr(prev, father, pres, i);
+	copychr_for_phaseVI(prev, father, pres, i);
       }
     } else if (minblock == 4) {
       // WHC: this is when one chrom has 4 blocks while another has 5 blocks; tricky one
@@ -2011,7 +2015,9 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
     }
   }// NO RECOMBINATION
   else {
-    copychr(prev, father, pres, i);
+    // WHC: WRONG!!! Cannot use original copychr, as it uses pointer[prev][father]->b for a for loop
+    //    copychr(prev, father, pres, i);
+    copychr_for_phaseVI(prev, father, pres, i);
   }
 
 }
@@ -3245,6 +3251,24 @@ void copychr(int prev, int ind0, int pres, int ind1) { // (origin,end)
     }
   }
 }
+
+/* ================================================================ */
+// WHC: a copychr() for phaseVI
+
+void copychr_for_phaseVI(int prev, int ind0, int pres, int ind1) { // (origin,end)
+  chrom *c1;
+  int j, k;
+  c1 = pointer[pres][ind1];
+  c1->b = pointer[prev][ind0]->b;
+  for (j = 0; j < 5; j++) {
+    c1->mpb[j] = pointer[prev][ind0]->mpb[j];
+    for (k = 0; k < pointer[prev][ind0]->mpb[j]; k++) {
+      c1->mutation[j][k] = pointer[prev][ind0]->mutation[j][k];
+    }
+  }
+}
+
+/* ================================================================ */
 
 // LOCATE A GIVEN MUTATION OR POSITION INSIDE A mutation VECTOR OF A GIVEN CHROMOSOME
 int location(int position, int h, int ind, int j) {// Found the position in the c->mutation array where "position" should be
