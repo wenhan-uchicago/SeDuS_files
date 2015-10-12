@@ -1884,6 +1884,8 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	    for (k = 0 ; k < pointer[prev][father]->mpb[4] ; k++) {
 	      chr->mutation[4][k] = pointer[prev][father]->mutation[4][k];
 	    }
+	  } else if (j == 6) {
+	    // WHC: do nothing
 	  } else {
 	    cout << "impossible!\n";
 	    exit(0);
