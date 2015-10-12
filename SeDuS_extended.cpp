@@ -339,7 +339,7 @@ void SamplingIndividuals(int); // Sample corresponding number of individuals (re
 int GenerateFixationTrajectory(int, int); // Generates fixation trajectory of the duplication (fixed or not)
 
 // WHC: for generating trajectory for phase VI
-void Generate_phaseVI_trajectory();
+void Generate_phaseVI_trajectory(int);
 
 void print_fertility();
 float round(float, int);
@@ -848,7 +848,7 @@ void phaseV(float k){
 void phaseVI(int prev, int pres, float k) {
   bool does_print = false;
   // Generating Fixation Trajectory in a diploid population
-  Generate_phaseVI_trajectory(); // WHC: trajectory (absolute number of chroms carrying 4 blocks instead of 5)
+  Generate_phaseVI_trajectory(2); // WHC: trajectory (absolute number of chroms carrying 4 blocks instead of 5)
 
   // WHC: the Generate_phaseVI_trajectory() will generate #chroms that lose dup_1
   // WHC: however, as crossover will change it...
@@ -3860,7 +3860,7 @@ int GenerateFixationTrajectory(int maxTime, int fixationTime) {
 // WHC: generate a random number of individuals with 4 blocks, ranging from 1 to (2*N - 1)
 // WHC: purely random for now, may introduce some more advanced function in the future
 
-void Generate_phaseVI_trajectory() {
+void Generate_phaseVI_trajectory(int mode) {
 
   /* ================================================================ */
   /*
@@ -3888,15 +3888,27 @@ void Generate_phaseVI_trajectory() {
 
   /* ================================================================ */  
 
-  phaseVI_trajectory[0] = 1;
-  for (int i = 1; i < (PHASE_VI_LENGTH) + 1; ++i) {
-    if (phaseVI_trajectory[i - 1] < (2 * N) * (1.0 / 4)) { // WHC: when #chrom < 1/4 total chroms
-      phaseVI_trajectory[i] = phaseVI_trajectory[i - 1] + 1;
-    } else if (phaseVI_trajectory[i - 1] > (2 * N) * (3.0 / 4)) { // WHC: when #chrom > 3/4 total chroms
-      phaseVI_trajectory[i] = phaseVI_trajectory[i - 1] - 1;
-    } else {			// WHC: between 1/4 and 3/4
-      phaseVI_trajectory[i] = (int) ((2 * N) * (1.0 / 8) + (rand() % ((int) (2 * N * 6.0 / 8)))); // WHC: generating 2*N*[1/8-7/8]; VERY rough for now
+  if (mode == 1) {
+    phaseVI_trajectory[0] = 1;
+    for (int i = 1; i < (PHASE_VI_LENGTH) + 1; ++i) {
+      if (phaseVI_trajectory[i - 1] < (2 * N) * (1.0 / 4)) { // WHC: when #chrom < 1/4 total chroms
+	phaseVI_trajectory[i] = phaseVI_trajectory[i - 1] + 1;
+      } else if (phaseVI_trajectory[i - 1] > (2 * N) * (3.0 / 4)) { // WHC: when #chrom > 3/4 total chroms
+	phaseVI_trajectory[i] = phaseVI_trajectory[i - 1] - 1;
+      } else {			// WHC: between 1/4 and 3/4
+	phaseVI_trajectory[i] = (int) ((2 * N) * (1.0 / 8) + (rand() % ((int) (2 * N * 6.0 / 8)))); // WHC: generating 2*N*[1/8-7/8]; VERY rough for now
+      }
     }
+  } else if (mode == 2) {
+    phaseVI_trajectory[0] = 1;
+    for (int i = 1; i < (PHASE_VI_LENGTH) + 1; ++i) {
+      if (phaseVI_trajectory[i - 1] < (2 * N) * (2.0 / 4)) {
+	phaseVI_trajectory[i] = phaseVI_trajectory[i - 1] + 1;
+      } else {
+	phaseVI_trajectory[i] = (int) (2 * N * (1.0 / 2));
+      }
+    }
+
   }
 }
 
