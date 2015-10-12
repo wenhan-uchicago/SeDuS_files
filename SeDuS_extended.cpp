@@ -1884,6 +1884,8 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	    for (k = 0 ; k < pointer[prev][father]->mpb[4] ; k++) {
 	      chr->mutation[4][k] = pointer[prev][father]->mutation[4][k];
 	    }
+	  } else if (j + 1 == 5) {
+	    // do nothing
 	  } else {
 	    cout << "impossible!\n";
 	    exit(0);
@@ -1992,7 +1994,7 @@ void lose_of_duplication(int eva, int prev) {
   // WHC: also, should consider making mpb[2] == 0?
   
   if (pointer[prev][eva]->b == 5) {
-    pointer[prev][eva]->b = 3;
+    pointer[prev][eva]->b = 4;
     
     pointer[prev][eva]->mpb[2] = 0;
     
