@@ -35,3 +35,7 @@ Probably due to forgetting adding mutational information into block 0 and block 
 Oct 12, 2015
 
 Because in phaseVI(), a father of #block = 4 could become #block = 5, which does not happen in phaseII(). and this causes the lose_of_duplicontent[] useless
+
+================
+
+Because I am using (1 + rand() % (2 * N - 1)) for generating the number of chroms carrying not dup_1 for next generation, therefore, maybe the 1st generation has 1 chrom without dup_1, the next may have 199 chroms carrying no dup_1. this should be the causes of the huge drop of divergence rate
