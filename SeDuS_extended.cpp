@@ -302,6 +302,9 @@ void mutation_for_phaseVI(float, int, int);
 
 // WHC: will use pointer donorRatio instead of float
 void conversion(float, int, int, int, float (*donorRatio)[5], float); // Only when duFreq is true. For each fertile chromosome decide if conversion happens and execute it if necessary
+void conversion_for_phaseVI(float, int, int, int, float (*donorRatio)[5], float);
+
+// WHC: conversion() for phaseVI()
 
 void statistics(int, bool); // Execution of all the statistic calculations (for each Era)
 void FSL(int); // Count of All the Segregating, Fixed, Lost and Shared sites
