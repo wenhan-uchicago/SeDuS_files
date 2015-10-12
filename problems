@@ -43,3 +43,7 @@ Because I am using (1 + rand() % (2 * N - 1)) for generating the number of chrom
 ================
 
 It seems that SiteFrequencySpectrumPrint_for_phaseVI()'s return results, are still causing troubles. maybe write it without a whole-scope float results[]? Maybe consider using a reference?
+
+================
+
+THOUGH, wiredly enough, it seems to be fine in the odd server... maybe Code::Blocks sucks??
