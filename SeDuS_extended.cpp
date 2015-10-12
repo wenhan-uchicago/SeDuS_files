@@ -1792,6 +1792,8 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	    }
 	  } else if (j == 1 && pointer[prev][father]->b == 4) {
 	    chr->mpb[1] = pointer[prev][father]->mpb[1];
+	    // WHC: important!!! need also assign pointer[prev][father]->mpb[2] (which is 0) to child!!!!!!!! for viod statistics_for_phaseVI()
+	    chr->mpb[2] = pointer[prev][father]->mpb[2];
 	    for (k = 0 ; k < pointer[prev][father]->mpb[1] ; k++) {
 	      chr->mutation[1][k] = pointer[prev][father]->mutation[1][k];
 	    }
@@ -2579,7 +2581,7 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
 	block_1 = ori_index;
 	block_2 = dup_2;
 	donorRatio = p_donorRatio[0][2];
-      } else if (chr1->b == 5 || chr2->b == 5) {	// WHC: could pick ori, dup_1, dup_2 blocks; means already in phaseIV(), at least 3 blocks for any chrom
+      } else if (chr1->b == 5 && chr2->b == 5) {	// WHC: could pick ori, dup_1, dup_2 blocks; means already in phaseIV(), at least 3 blocks for any chrom
 	// WHC: randomly generate 0, 1, 2
 	// WHC: which correspond to ori&dup_1, ori&dup_2 and dup_1&dup_2 pairs
 	int which_pair = rand() % 3;
@@ -2806,6 +2808,37 @@ void statistics(int prev, bool does_print) {
   DivergenceForAll(0, 4, prev);
   DivergenceForAll(2, 4, prev);
 }
+
+/* ================================================================ */
+// WHC: new statistics() for phaseVI; need to creat SiteFrequencySpectrumPrint_for_phaseVI()
+
+void statistics_for_phaseVI(int prev, bool does_print) {
+  int j, o;
+  float * resultsSample;
+
+  // WHC: FSL() will delete fixed/lost mutations
+  // WHC: and make a new muttable[]
+  
+  FSL(prev); // Creating the summary vector fixedLostForAll
+  // INFORMATION RECOVERED FROM SAMPLES
+  
+  for (o = 0; o < numofsamples; o++) {
+    SamplingIndividuals(sampleN[o]);
+
+    // CALCULATES THE SFS FOR THE SAMPLE BLOCK BY BLOCK
+    for (j = 0; j < B; j++) {
+      resultsSample = SiteFrequencySpectrumPrint_for_phaseVI(prev, j, sampleN[o], does_print);
+      samplefile[j][o][0] << resultsSample[1] << " "; // the results array keeps (S,pi) but for the sake of tradition
+      samplefile[j][o][1] << resultsSample[0] << " "; // we save it as (pi,S)
+    }
+  }
+  // CALCULATES THE NUMBER OF PRIVATE & SHARED MUTATIONES BETWEEN BLOCKS 0 & 2
+  DivergenceForAll(0, 2, prev);
+  DivergenceForAll(0, 4, prev);
+  DivergenceForAll(2, 4, prev);
+}
+
+/* ================================================================ */
 
 /////////////////////////////////////////////////////////////////////
 ////  FSL (FIXED-SEGREGATING-LOST): EXTRACTS INFO FROM MUTTABLE  ////
@@ -3303,6 +3336,150 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
 
 }
 
+/* ================================================================ */
+// WHC: new SiteFrequencySpectrumPrint() for phaseVI
+
+float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool does_print) {
+  int s = n;
+  int p, i, j, k, index, m, number, duplicationFreq;
+  int xi[2 * s], list [2 * N];
+  float value, mufreq;
+  static float results[] = {0, 0};
+
+  results[0] = 0;
+  results[1] = 0;
+
+  if(block == 2){
+    //duplicationFreq = DupliFreq(prev, 2, n);
+    duplicationFreq = DupliFreq_for_phaseVI(h, 2, n);
+
+    // WHC: why divided by 2?? Because DupliFreq() returns the number of chroms, but s is the number of individuals!!
+    s = (int) duplicationFreq/2;
+  } else if (block == 4) {	// WHC: newly added
+    duplicationFreq = DupliFreq(h, 4, n);
+    if (duplicationFreq != 2 * n) { cout << "something wrong in counting dup_fre.\n"; exit(0);  }
+    s = (int) duplicationFreq / 2;
+  }
+  if (s == 0) { return results; }
+
+  for (m = 0, number = 0; m < MutCount; m++) {
+    if (block == muttable[m].block && muttable[m].frequency != 0) {
+      if (muttable[m].frequency != 1) {
+	// WHC: muttable[].frequency, is calculated in FSL() by dividing (2 * N), not (2 * s)
+	// WHC: so, it is a population-level frequency, not a sample-level frequency as here
+	// WHC: and this time, muFrequencyIntWholePopAndSample() will just do sample-level based on sample[]
+	mufreq = (float) muFrequencyIntWholePopAndSample(h, muttable[m].position, muttable[m].block,n);
+	mufreq = (mufreq)/(2*s);
+	if(mufreq != 0){
+	  list[number] = muttable[m].position;
+	  number++; // number = segregatingSites in sample
+	}
+      }
+    }
+  }
+  results[0] = number;
+  // number=5;
+  if(does_print == true){
+    mutationsNewFile[block] << "\n\n//\nsegsites: "<< number <<"\npositions: ";
+  }
+
+  if (number == 0) { return results; }
+
+  int prototype[number];
+  int mutationCounts[number];
+  for (index = 0; index < 2 * s; index++) {
+    xi[index] = 0;
+  }
+
+  // BUILD THE PROTOTYPE: AN ORDERED SEQUENCE WITH ALL POSSIBLE MUTATION POSITIONS
+  // WHC: sorting prototype[]
+  for (m = 0, p = 0; m < number; m++) {
+    if (p == 0) {
+      prototype[p] = list[m];
+      p++;
+    }else {
+      j = 0;
+      while (list[m] > prototype[j] && j < p) { j++; }
+      if (j < p) {
+	for (k = p + 1; k > j; k--) {
+	  prototype[k] = prototype[k - 1];
+	}
+      }
+      prototype[j] = list[m];
+      p++;
+    }
+  }
+
+  // PRINTS POSITIONS OF SEGREGATING SITES WITH FIVE DECIMAL POSITIONS
+  // WHC: so the output is ordered
+  if(does_print == true){
+    float rounded_mutation;
+    for(int nn=0; nn < number ; nn++){
+      rounded_mutation = (float) prototype[nn]/BLOCKLENGTH;
+      rounded_mutation = round(rounded_mutation,7);
+      mutationsNewFile[block] << rounded_mutation << " ";
+    }
+    mutationsNewFile[block] << "\n";
+  }
+
+  // THIS FUNCTION PRINTS THE CONTENT OF MUTATIONSNEWFILE
+  if(does_print == true){
+    int pos;
+    for (i = 0; i < 2 * s; i++) {
+      for (j = 0; j < number; j++) {
+	pos = prototype[j];
+	k = location(prototype[j], h, sample[i], block);
+	if (pointer[h][sample[i]]->mutation[block][k] == pos && k < pointer[h][sample[i]]->mpb[block]) {
+	  // WHC: this if () clause shows multiple times, it is to test whether the specific mutation (at pos position),
+	  // WHC: shoulds in the specific individual (sample[i]) or not
+	  // WHC: notice that the k < pointer[h][sample[i]]->mpb[block] is NECESSARY (hint: if there is no such mutation, return value..)
+	  
+	  mutationsNewFile[block] << "1";
+	}else{
+	  mutationsNewFile[block] << "0";
+	}
+      }
+      mutationsNewFile[block] << "\n";
+    }
+  }
+
+  //FIND THE FREQUENCY OF EACH MUTATION
+  //MUTCOUNTS IS AN ARRAY THAT COUNTS THE NUMBER OF TIMES EACH MUTATION APPEARS
+  for (j = 0; j < number; j++) {
+    mutationCounts[j] = muFrequencyIntWholePopAndSample(h, prototype[j], block, n);
+  }
+  //FIND THE UNFOLDED SITE FREQUENCY SPECTRUM
+  //xi[i] IS AN ARRAY THAT COUNTS THE NUMBER OF POLYMORPHIC SITES THAT HAVE i COPIES OF THE MUTATION
+  // WHC: so the output file SFS_x_ID means -- 12, 10, 20,... there are 12 polymophic sites with 1 copy, 10 with 2 copies, 20 with 3...
+  
+  for (i = 1; i < 2 * s; i++) {
+    for (j = 0; j < number; j++) {
+      if (mutationCounts[j] == i) {
+	xi[i]++;
+      }
+    }
+  }
+
+  if(does_print==true){
+    for (i = 1; i < 2 * s; i++) {
+      SFS[block] << xi[i] << " ";
+    }
+    SFS[block] << "\n";
+  }
+
+  // CALCULATE AVERAGE PAIRWISE DIFFERENCE
+  // WHC: what does this mean??
+  for (i = 1, value = 0; i < 2 * s; i++) {
+    value += (float) (i * (2 * s - i) * xi[i]);
+  }
+  value /= (s * (2 * s - 1));
+  results[1] = value;
+  return results;
+
+}
+
+/* ================================================================ */
+
 
 ////////////////////////////////////////////////////////////////
 ////  DIVERGENCE BETWEEN IN SAME AND DIFFERENT CHROMOSOMES  ////
@@ -3391,6 +3568,38 @@ int DupliFreq(int h, int block, int n) {
   }
   return quantity;
 }
+
+/* ================================================================ */
+// WHC: DupliFreq() for phaseVI
+
+int DupliFreq_for_phaseVI(int h, int block, int n) {
+  // WHC: can only work for counting dup_1 frequency in phaseVI
+  int i = 0, quantity = 0;
+
+  if (block != 2) { cout << "this boy does not do this job.\n"; exit(0); }
+  
+  if (n == N){
+    for (i = 0; i < 2 * n; i++) {
+      //      if (pointer[h][i]->b == (block + 1)) {
+      // WHC: maybe?
+      if (pointer[h][i]->b == 4) { // WHC: lost dup_1
+	quantity++;
+      }
+    }
+  }else{
+    for (i = 0; i < 2 * n; i++) {
+      //      if (pointer[h][sample[i]]->b == (block + 1)) {
+      // WHC: same reason as previous
+      if (pointer[h][sample[i]]->b == 4) { // WHC: lost dup_1
+	quantity++;
+      }
+    }
+  }
+  return (2 * n - quantity);
+}
+
+
+/* ================================================================ */
 
 // THIS FUNCTION SERVES TO SEARCH FOR THE ABSOLUTE FREQUENCY OF A GIVEN MUTATION IN THE WHOLE POPULATION OR A SAMPLE
 int muFrequencyIntWholePopAndSample(int h, int pos, int block, int n) {
@@ -3602,9 +3811,17 @@ int GenerateFixationTrajectory(int maxTime, int fixationTime) {
 // WHC: purely random for now, may introduce some more advanced function in the future
 
 void Generate_phaseVI_trajectory() {
+
+  /*
+    WHC: when I use  for (int i = 1; i < (PHASE_VI_LENGTH); ++i) {} clause, the last generation always yields 0 dup_1
+    solved when I use for (int i = 1; i < (PHASE_VI_LENGTH) + 1; ++i) {} clause
+    !! As in their phaseII(), GenerateFixationTrajectory(STRUCTURED + 1, ), there is a +1 there!
+  */
+  
   phaseVI_trajectory[0] = 1;
   
-  for (int i = 1; i < (PHASE_VI_LENGTH); ++i) {
+  //  for (int i = 1; i < (PHASE_VI_LENGTH); ++i) {
+  for (int i = 1; i < (PHASE_VI_LENGTH) + 1; ++i) {
     phaseVI_trajectory[i] = 1 + (rand() % (2 * N - 1)); // generating [1-(2N-1)]
   }
 
