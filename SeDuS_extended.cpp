@@ -341,6 +341,10 @@ int GenerateFixationTrajectory(int, int); // Generates fixation trajectory of th
 // WHC: for generating trajectory for phase VI
 void Generate_phaseVI_trajectory(int);
 
+// WHC: randomly pick 0, 1, 2 with desired propotions
+int pick_a_pair(int);
+
+
 void print_fertility();
 float round(float, int);
 int minim (int, int);
@@ -543,6 +547,15 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       //////// RUN /////////
       //////////////////////
 
+// WHC: hard cord to initiate these values
+//      crossoverBegin[maxNumOfHS] = {0, 3 * BLOCKLENGTH, 4 * BLOCKLENGTH}; // Start point of crossover regions
+//      crossoverEnd[maxNumOfHS] = {3 * BLOCKLENGTH, 4 * BLOCKLENGTH, 5 * BLOCKLENGTH}; // End point of crossover regions
+      // WHC: before phaseIV(), crossover could only happen in block 0, 1, 2
+      //      crossoverRatio[maxNumOfHS] = {1, 0, 0}; // Relative weights of crossover regions
+      crossoverRatio[0] = 1;
+      crossoverRatio[1] = 0;
+      crossoverRatio[2] = 0;
+      
       /*  PHASE I: BURN-IN  */
       cout << "PHASE I" << "\n";
       prev_pres ret = phaseI();
@@ -559,6 +572,16 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       phaseIII(kappa);
       /* END PHASE III */
 
+
+      //      crossoverBegin[maxNumOfHS] = {0, 3 * BLOCKLENGTH, 4 * BLOCKLENGTH}; // Start point of crossover regions
+      //      crossoverEnd[maxNumOfHS] = {3 * BLOCKLENGTH, 4 * BLOCKLENGTH, 5 * BLOCKLENGTH}; // End point of crossover regions
+
+      //      crossoverRatio[maxNumOfHS] = {0.15, 0.8, 0.05}; // Relative weights of crossover regions
+      crossoverRatio[0] = 0.15;
+      crossoverRatio[1] = 0.8;
+      crossoverRatio[2] = 0.05;
+      
+      
       /* PHASE IV: STRUCTURED_2 TRAJECTORY */
       // WHC: for generating dup_2
       cout << "PHASE IV" << '\n';
@@ -2348,7 +2371,10 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
       } else if (chr1->b == 5 || chr2->b == 5) {	// WHC: could pick ori, dup_1, dup_2 blocks; means already in phaseIV(), at least 3 blocks for any chrom
 	// WHC: randomly generate 0, 1, 2
 	// WHC: which correspond to ori&dup_1, ori&dup_2 and dup_1&dup_2 pairs
-	int which_pair = rand() % 3;
+
+	// WHC: pick_a_pair() is a function, that picks 0, 1 or 2, with desired propotions
+	int which_pair = pick_a_pair(1);
+	//	int which_pair = rand() % 3;
 
 	if (which_pair == 0) {	// WHC: ori&dup_1 pair
 	  block_1 = ori_index;
@@ -2463,7 +2489,10 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	if (p < (3 * probability * BLOCKLENGTH * sameDifIGC)) { // WHC: should this be 3? Because we have 3 blocks...
 	  IGC = 1;
 	  // Determines which block will be the donor and which will be the receptor
-	  int which_pair = rand() % 3;
+
+	  
+	  int which_pair = pick_a_pair(1);
+	  //	  int which_pair = rand() % 3;
 	  int block_1, block_2;
 	  float donorRatio;
 	  if (which_pair == 0) {	// WHC: ori&dup_1 pair
@@ -2626,7 +2655,9 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
       } else if (chr1->b == 5 && chr2->b == 5) {	// WHC: could pick ori, dup_1, dup_2 blocks; means already in phaseIV(), at least 3 blocks for any chrom
 	// WHC: randomly generate 0, 1, 2
 	// WHC: which correspond to ori&dup_1, ori&dup_2 and dup_1&dup_2 pairs
-	int which_pair = rand() % 3;
+
+	int which_pair = pick_a_pair(1);
+	//	int which_pair = rand() % 3;
 
 	if (which_pair == 0) {	// WHC: ori&dup_1 pair
 	  block_1 = ori_index;
@@ -2702,7 +2733,9 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
 	if (p < (3 * probability * BLOCKLENGTH * sameDifIGC)) { // WHC: should this be 3? Because we have 3 blocks...
 	  IGC = 1;
 	  // Determines which block will be the donor and which will be the receptor
-	  int which_pair = rand() % 3;
+
+	  int which_pair = pick_a_pair(1);
+	  //	  int which_pair = rand() % 3;
 	  int block_1, block_2;
 	  float donorRatio;
 	  if (which_pair == 0) {	// WHC: ori&dup_1 pair
@@ -3942,4 +3975,26 @@ bool sorty (fertility_info i,fertility_info j) {
   int tt1 = (i).y;
   int tt2 = (j).y;
   return (tt1<tt2); 	
+}
+
+
+// WHC: randomly pick 0, 1 or 2, with 
+int pick_a_pair(int mode) {
+  if (mode == 1) {		// mode 1, giving dup_1 lower chance
+    int p = rand() % 10;	// generate 0 - 9
+    if (p == 0) {
+      return 0;
+    } else if (p == 9) {
+      return 2;
+    } else if (p > 0 && p < 9) {
+      return 1;
+    } else {
+      cout << "wrong in pick_a_pair().\n";
+      exit(0);
+    }
+  } else if (mode == 2) {	// mode 2, pick equally 0, 1, 2
+    int p = rand() % 3;
+    return p;
+  }
+  
 }
