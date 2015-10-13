@@ -237,7 +237,7 @@ int fixationTrajectory[30000 + 1]; // Absolute frequency of the duplication in e
 
 int phaseVI_trajectory[40000 + 1];
 
-std::vector<bool> multihit; // Record the positions in which a mutation has occurred
+std::vector<bool> multihti; // Record the positions in which a mutation has occurred
 int duplicationFreq; // Absolute frequency of the duplication in the present generation
 bool duFreq; // Duplication has occurred or not
 
@@ -959,6 +959,15 @@ void phaseVI(int prev, int pres, float k) {
     // CALCULATE THE STATISTICS
     statistics_for_phaseVI(pres, does_print);
 
+    // WHC: for printing block_1's mutation positions
+    for (int temp = 0; temp < 2 * N; ++temp) {
+      cout << "this is for individual " << temp << '\n';
+      for (int k = 0; k < pointer[pres][i]->mpb[1]; ++k) {
+	cout << k << '\t' << pointer[pres][i]->mutation[1][k] << '\n';
+      }
+    }
+
+    
     /* ================================================================ */
     /* WHC: just to see how many chroms are carrying dup_2 */
     /*
