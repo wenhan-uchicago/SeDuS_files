@@ -47,3 +47,13 @@ It seems that SiteFrequencySpectrumPrint_for_phaseVI()'s return results, are sti
 ================
 
 THOUGH, wiredly enough, it seems to be fine in the odd server... maybe Code::Blocks sucks??
+
+================
+
+in line 2963, it seems that all blocks (including single-copy block) are sharing a same multihit vector, which to me seems wrong. single-copy block should have its own multihit vector??? (given that --
+
+    if (muttable[m].frequency == 0 && muttable[m].block == 1) {
+       multihid[muttable[m].position] = false;
+    }
+
+will need to inspect more carefully later

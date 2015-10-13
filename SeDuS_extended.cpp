@@ -2959,6 +2959,8 @@ void FSL(int hh) {
     }
 
     if (muttable[m].frequency == 0 && muttable[m].block == 1) {
+      // WHC: this should not be correct???? single-block should have its own multihit vector????
+      
       multihit[muttable[m].position] = false;
     }
     if (muttable[m].frequency == 0 && muttable[m].block == 0 && duFreq == false) {
