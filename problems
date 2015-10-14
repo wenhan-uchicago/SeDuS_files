@@ -90,3 +90,9 @@ ALSO, may need to do this for mpb[2] for phaseVI() too!!!
 I think they are WRONG!! As long as the PROMETHEUS = 100 (set it smaller), the mufreq will happend to be > 1 in SiteFrequencySpectrumPrint(); because s = (int) n / 2...
 
 THis is fine for them, but not for us. Because in phaseVI(), we want to keep a balance between #blocks = 4 and #blocks = 5, so, s = (int) n / 2 does not work
+
+================
+
+important: in void phaseVI(), I seemed to randomly mix duplicontent_2[], instead of lose_of_duplicontent[]!!!! (May be the reason for single-copy's wired increase...)
+
+NO! I DID randomly mixed them...
