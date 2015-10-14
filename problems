@@ -69,3 +69,18 @@ I SEE!! Because in FSL(), the information will be copied once to block 0. For ex
 ================
 
 This is correct!! After changing duplication_2(), this redundency is eliminated in muttable[].block == 4!!
+
+================
+
+Also, the information in mpb[4] was not properly set to 0 for child produced by a father without block 5; so the pointer[][].mpb[4] remains the same as previous generation!!!! (which means its previous generation could be > 0, causing a problem) (but, is this a problem for phaseII() too??)
+
+================
+
+(WRONG) Because the information for block 2 in phaseII() comes from the father, it is actually copied. So long as the initial father mpb[2] == 0, the same will be true for the son!! But I may forgot copy the information about father's mpb[4] when father->b == 3 (i.e., father does not carry dup_2)
+(NOOOOOO!!!! It actually is not copied; and I've tested, some do have mpb[2] > 0 when chr->b == 2; maybe they have other ways to solve this? or maybe they are incorrect??)
+
+================
+
+ALSO, may need to change copychr() too!!
+
+ALSO, may need to do this for mpb[2] for phaseVI() too!!!

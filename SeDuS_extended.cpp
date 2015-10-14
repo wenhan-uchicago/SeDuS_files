@@ -1592,6 +1592,14 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
 	    chr->mpb[j] = 0;
 	  }
 	}
+
+	// WHC: IMPORTANT!!! Set mpb[4] == 0 if chr->b == 3
+	if (chr->b == 3) {
+	  chr->mpb[4] = 0;
+	} else if (chr->b == 2) {
+	  chr->mpb[2] = 0;
+	  chr->mpb[4] = 0;
+	}
       }
     } else if (((minblock * BLOCKLENGTH) < end) && ((minblock * BLOCKLENGTH) <= beg)) {
       // WHC: this steps looks like a "lazy" step; (NO! I was wrong! Imagine if a hot block on block 3 with 100% proposion!
@@ -2130,7 +2138,8 @@ void lose_of_duplication(int eva, int prev) {
   
   if (pointer[prev][eva]->b == 5) {
     pointer[prev][eva]->b = 4;
-    
+
+    // WHC: this step is VERY important, as many problems have been caused by this!!!
     pointer[prev][eva]->mpb[2] = 0;
     
   } else {
@@ -3273,6 +3282,20 @@ void copychr(int prev, int ind0, int pres, int ind1) { // (origin,end)
       c1->mutation[j][k] = pointer[prev][ind0]->mutation[j][k];
     }
   }
+
+  // WHC: I think this is necessary, and I don't know if their original code is correct without this???
+  if (c1->b == 2) {
+    c1->mpb[2] = 0;
+    c1->mpb[4] = 0;
+  } else if (c1->b == 3) {
+    c1->mpb[4] = 0;
+  } else if (c1->b == 4) {
+    cout << "hi, this should not be here! go for copychr_for_phaseVI()!\n";
+    exit(0);
+  } else {
+    cout << "wrong over here.\n";
+    exit(0);
+  }
 }
 
 /* ================================================================ */
@@ -3283,6 +3306,7 @@ void copychr_for_phaseVI(int prev, int ind0, int pres, int ind1) { // (origin,en
   int j, k;
   c1 = pointer[pres][ind1];
   c1->b = pointer[prev][ind0]->b;
+  // WHC: similar as copychr(), this should work
   for (j = 0; j < 5; j++) {
     c1->mpb[j] = pointer[prev][ind0]->mpb[j];
     for (k = 0; k < pointer[prev][ind0]->mpb[j]; k++) {
