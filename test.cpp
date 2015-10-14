@@ -19,25 +19,11 @@
 
 using namespace std;
 
-int phaseVI_trajectory[1000];
-int N = 100;
 
 int main() {
-
-    phaseVI_trajectory[0] = 1;
-    for (int i = 1; i < 1000; ++i) {
-      if (phaseVI_trajectory[i - 1] < (2 * N) * (2.0 / 4)) {
-	phaseVI_trajectory[i] = phaseVI_trajectory[i - 1] + 1;
-      } else {
-	phaseVI_trajectory[i] = (int) (2 * N * (1.0 / 2));
-      }
-    }
-
-
-  for (int i = 0; i < 1000; ++i) {
-    cout << phaseVI_trajectory[i] << " ";
-  }
-  cout << endl;
+  int k;
+  for (k = 0; k < 10; ++k) {}
+  cout << k << endl;
   return 0;
 }
 

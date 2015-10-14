@@ -65,3 +65,7 @@ Found redundent positions in muttable[].block == 4, in phaseIV(). I suspect this
 But the muttable[].block == 0 seems to be fine, no redudent positions at all.. This doesn't make sense if in FSL(), all information is mutually copied to each other..
 
 I SEE!! Because in FSL(), the information will be copied once to block 0. For example, in there is muttable[10].block = 4, muttable[10].position = 1000; and muttable[11].block = 4, muttable[11].position = 1000, which is redundent. Then, this information is only copied to block 0 when it is in block 0's for loop; this will not be copied to block 0 in block 4's for loop. And as block 0 initially does not have redundency, this will only be copied once!!! (same is true for block 2, no redundency at the beginning means no redundency always!!)
+
+================
+
+This is correct!! After changing duplication_2(), this redundency is eliminated in muttable[].block == 4!!
