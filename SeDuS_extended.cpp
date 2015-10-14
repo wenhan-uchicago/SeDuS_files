@@ -3292,8 +3292,10 @@ void copychr(int prev, int ind0, int pres, int ind1) { // (origin,end)
   } else if (c1->b == 4) {
     cout << "hi, this should not be here! go for copychr_for_phaseVI()!\n";
     exit(0);
+  } else if (c1->b == 5) {
+    // do nothing
   } else {
-    cout << "wrong over here.\n";
+    cout << "something wrong here.\n";
     exit(0);
   }
 }
