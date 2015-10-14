@@ -960,8 +960,8 @@ void phaseVI(int prev, int pres, float k) {
     statistics_for_phaseVI(pres, does_print);
 
     // WHC: for printing block_1's mutation positions
-    for (int temp = 0; temp < 2 * N; ++temp) {
-      cout << "this is for individual " << temp << '\n';
+    for (int i = 0; i < 2 * N; ++i) {
+      cout << "this is for individual " << i << '\n';
       for (int k = 0; k < pointer[pres][i]->mpb[1]; ++k) {
 	cout << k << '\t' << pointer[pres][i]->mutation[1][k] << '\n';
       }
