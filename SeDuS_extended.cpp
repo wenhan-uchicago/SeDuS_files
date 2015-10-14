@@ -237,7 +237,7 @@ int fixationTrajectory[30000 + 1]; // Absolute frequency of the duplication in e
 
 int phaseVI_trajectory[40000 + 1];
 
-std::vector<bool> multihti; // Record the positions in which a mutation has occurred
+std::vector<bool> multihit; // Record the positions in which a mutation has occurred
 int duplicationFreq; // Absolute frequency of the duplication in the present generation
 bool duFreq; // Duplication has occurred or not
 
@@ -2098,8 +2098,16 @@ void duplication_2(int i,int prev, bool from) {
 
   // WHC: need to understand this before changing; changed, need double-check
   for (k = 0; k < MutCount; k++) {
-    // WHC: this may be the causes of thousands of tries!!!! Should also copy dup_1's informations!!!
-    if (muttable[k].block == 0 || muttable[k].block == 2) {
+    // WHC: this may be the causes of thousands of tries!!!! Should also copy dup_1's informations!!! (WRONG!!!)
+    
+    //    if (muttable[k].block == 0 || muttable[k].block == 2) {
+    if (muttable[k].block == 0) {
+      /*
+	WHC: WAIT!! But does I copy twice?? If block 0 and block 2 share all mutation information, am I copying twice???
+	WHC: IMPORTANT!!!!
+	WHC: after changing this, the redundency in muttable[].block = 4 is eliminated!!!
+       */
+      
       muttable[MutCount + tempMutCount].position = muttable[k].position;
       muttable[MutCount + tempMutCount].block = 4;
       tempMutCount++;
@@ -3746,6 +3754,14 @@ int muFrequencyIntWholePopAndSample(int h, int pos, int block, int n) {
     }
   } else {
     for (i = 0, quantity = 0; i < 2 * n; i++) {
+      // WHC: imagine, how DISASTROUS it would be, if pointer[h]sample[i]] does NOT have block 4 (or, dup_2)!!!
+      // WHC: the mpb[4] is undefined!!!
+      // WHC: how did they overcome this for phaseII and block 2???
+      // WHC: but they initiated this in int main()...?
+
+      // WHC: I think start at phaseIV(), when a #blocks = 5 chrom in the table[4*N] has a "next-generation chrom" whose #blocks = 4
+      // WHC: then, its mpb[4] is the same as previous, which is not initialized
+      // WHC: which means, I FAILED to clear those values to 0!!!!!
       k = location(pos, h, sample[i], block);
       if (pointer[h][sample[i]]->mutation[block][k] == pos && k < pointer[h][sample[i]]->mpb[block]) {
 	quantity++;
