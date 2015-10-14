@@ -238,6 +238,10 @@ int fixationTrajectory[30000 + 1]; // Absolute frequency of the duplication in e
 int phaseVI_trajectory[40000 + 1];
 
 std::vector<bool> multihit; // Record the positions in which a mutation has occurred
+
+// WHC: multihit for single-copy block
+vector<bool> multihit_single;
+
 int duplicationFreq; // Absolute frequency of the duplication in the present generation
 bool duFreq; // Duplication has occurred or not
 
@@ -445,6 +449,8 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
 
   
   multihit.resize(BLOCKLENGTH); // WHC: allocate BLOCKLENGTH-long size for vector multihit
+  multihit_single.resize(BLOCKLENGTH);
+  
   table.resize(4*N);	      // WHC: a table of struct chroms
   pointer.resize(2);for(unsigned int i=0;i<pointer.size();i++){pointer[i].resize(2*N);} // WHC: pointers to chroms
   sampleN[0] = {SAMPLE};
@@ -547,7 +553,7 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
 
       loseFreq = false;
       
-      for (j = 0; j < BLOCKLENGTH; j++) { multihit[j] = false;}
+      for (j = 0; j < BLOCKLENGTH; j++) { multihit[j] = false; multihit_single[j] = false; }
 
       //////////////////////
       //////// RUN /////////
@@ -2171,91 +2177,189 @@ void mutation(float probability, int i, int pres) {
 	}
       }
     }
-    for(int muts=0; muts < mutEvents; muts++){
-      // Randomly choose one NEW mutation position
-      do {
-	position = (int) (rand() % (BLOCKLENGTH));
-      } while (multihit[position] == true);
-      multihit[position] = true;
+    if (j != 1) {
+      for(int muts=0; muts < mutEvents; muts++){
+	// Randomly choose one NEW mutation position
+	do {
+	  position = (int) (rand() % (BLOCKLENGTH));
+	} while (multihit[position] == true);
+	multihit[position] = true;
 
-      // If there are no previous mutations or if the new mutation fall behind all previous ones...,
-      if (chr->mpb[j] == 0 || position > chr->mutation[j][chr->mpb[j] - 1]) {
-	// Simply add the mutation
-	chr->mutation[j][chr->mpb[j]] = position;
-	chr->mpb[j]++;
-      }// Otherwise, shift the mutations one position so that mutations appear ordered in the chr.mutation array
-      // WHC: otherwise shift many positions; I think could be done by stable_sort()?
-      else {
-	val = location(position, pres, i, j);
-	for (k = chr->mpb[j]; k > val; k--) {
-	  // WHC: from last mutation, move everything 1 position backword, until new mutation
-	  chr->mutation[j][k] = chr->mutation[j][k - 1];
+
+	// If there are no previous mutations or if the new mutation fall behind all previous ones...,
+	if (chr->mpb[j] == 0 || position > chr->mutation[j][chr->mpb[j] - 1]) {
+	  // Simply add the mutation
+	  chr->mutation[j][chr->mpb[j]] = position;
+	  chr->mpb[j]++;
+	}// Otherwise, shift the mutations one position so that mutations appear ordered in the chr.mutation array
+	// WHC: otherwise shift many positions; I think could be done by stable_sort()?
+	else {
+	  val = location(position, pres, i, j);
+	  for (k = chr->mpb[j]; k > val; k--) {
+	    // WHC: from last mutation, move everything 1 position backword, until new mutation
+	    chr->mutation[j][k] = chr->mutation[j][k - 1];
+	  }
+	  chr->mutation[j][val] = position;
+	  chr->mpb[j]++;
 	}
-	chr->mutation[j][val] = position;
-	chr->mpb[j]++;
-      }
-      // ELABORATES MUTTABLE
-      muttable[MutCount].position = position;
-      muttable[MutCount].block = j;
-      MutCount++;
-
-
-      // WHC: I think this step is for making sure new mutation could only arise on non-polymorphic positions, on both blocks
-      // IF MUTATION APPEARS IN BLOCK 0 OR 2, COPY THE MUTATION TO THE OTHER BLOCK
-      // if (j == 0 && duFreq == true) {
-      if (j == 0 && duFreq == true && duFreq_2 == false) {
-	// WHC: in phaseII() but not in phaseIV()
-	muttable[MutCount].block = 2;
-	muttable[MutCount].position = muttable[MutCount - 1].position;
-	MutCount++;
-      } else if (j == 0 && duFreq_2 == true) {
-	// WHC: if is in phaseIV(), then should copy information from 0 to 2 and 4
-	// WHC: copy to dup_1
-	muttable[MutCount].block = 2;
-	muttable[MutCount].position = muttable[MutCount - 1].position;
+	// ELABORATES MUTTABLE
+	muttable[MutCount].position = position;
+	muttable[MutCount].block = j;
 	MutCount++;
 
-	// WHC: copy to dup_2
-	muttable[MutCount].block = 4;
-	muttable[MutCount].position = muttable[MutCount - 2].position;
-	MutCount++;
-      }
+
+	// WHC: I think this step is for making sure new mutation could only arise on non-polymorphic positions, on both blocks
+	// IF MUTATION APPEARS IN BLOCK 0 OR 2, COPY THE MUTATION TO THE OTHER BLOCK
+	// if (j == 0 && duFreq == true) {
+	if (j == 0 && duFreq == true && duFreq_2 == false) {
+	  // WHC: in phaseII() but not in phaseIV()
+	  muttable[MutCount].block = 2;
+	  muttable[MutCount].position = muttable[MutCount - 1].position;
+	  MutCount++;
+	} else if (j == 0 && duFreq_2 == true) {
+	  // WHC: if is in phaseIV(), then should copy information from 0 to 2 and 4
+	  // WHC: copy to dup_1
+	  muttable[MutCount].block = 2;
+	  muttable[MutCount].position = muttable[MutCount - 1].position;
+	  MutCount++;
+
+	  // WHC: copy to dup_2
+	  muttable[MutCount].block = 4;
+	  muttable[MutCount].position = muttable[MutCount - 2].position;
+	  MutCount++;
+	}
       
-      //      if (j == 2) {
-      if (j == 2 && duFreq_2 == false) {
-	// WHC: in phaseII() but not in phaseIV()
-	muttable[MutCount].block = 0;
-	muttable[MutCount].position = muttable[MutCount - 1].position;
-	MutCount++;
-      } else if (j == 2 && duFreq_2 == true) {
-	// WHC: in phaseIV()
-	// WHC: or in phaseV()
-	// WHC: copy to dup_1
-	muttable[MutCount].block = 0;
-	muttable[MutCount].position = muttable[MutCount - 1].position;
-	MutCount++;
+	//      if (j == 2) {
+	if (j == 2 && duFreq_2 == false) {
+	  // WHC: in phaseII() but not in phaseIV()
+	  muttable[MutCount].block = 0;
+	  muttable[MutCount].position = muttable[MutCount - 1].position;
+	  MutCount++;
+	} else if (j == 2 && duFreq_2 == true) {
+	  // WHC: in phaseIV()
+	  // WHC: or in phaseV()
+	  // WHC: copy to dup_1
+	  muttable[MutCount].block = 0;
+	  muttable[MutCount].position = muttable[MutCount - 1].position;
+	  MutCount++;
 
-	// WHC: copy to dup_2
-	muttable[MutCount].block = 4;
-	muttable[MutCount].position = muttable[MutCount - 2].position;
-	MutCount++;
-      }
+	  // WHC: copy to dup_2
+	  muttable[MutCount].block = 4;
+	  muttable[MutCount].position = muttable[MutCount - 2].position;
+	  MutCount++;
+	}
 
-      // WHC: FORGOT the j == 4!!!! Causing trouble in muttable[]!!!! BUT, I am so happy figuring this out!!!
+	// WHC: FORGOT the j == 4!!!! Causing trouble in muttable[]!!!! BUT, I am so happy figuring this out!!!
 
-      if (j == 4) {
-	// WHC: must be in or after phaseIV()
-	muttable[MutCount].block = 0;
-	muttable[MutCount].position = muttable[MutCount - 1].position;
-	MutCount++;
+	if (j == 4) {
+	  // WHC: must be in or after phaseIV()
+	  muttable[MutCount].block = 0;
+	  muttable[MutCount].position = muttable[MutCount - 1].position;
+	  MutCount++;
 
-	// WHC: copy to dup_2
-	muttable[MutCount].block = 2;
-	muttable[MutCount].position = muttable[MutCount - 2].position;
-	MutCount++;
-      }
+	  // WHC: copy to dup_2
+	  muttable[MutCount].block = 2;
+	  muttable[MutCount].position = muttable[MutCount - 2].position;
+	  MutCount++;
+	}
       
+      }
+
+	
+
+    } else if (j == 1) {
+      for(int muts=0; muts < mutEvents; muts++){
+	// Randomly choose one NEW mutation position
+	do {
+	  position = (int) (rand() % (BLOCKLENGTH));
+	} while (multihit_single[position] == true);
+	multihit_single[position] = true;
+
+
+	// If there are no previous mutations or if the new mutation fall behind all previous ones...,
+	if (chr->mpb[j] == 0 || position > chr->mutation[j][chr->mpb[j] - 1]) {
+	  // Simply add the mutation
+	  chr->mutation[j][chr->mpb[j]] = position;
+	  chr->mpb[j]++;
+	}// Otherwise, shift the mutations one position so that mutations appear ordered in the chr.mutation array
+	// WHC: otherwise shift many positions; I think could be done by stable_sort()?
+	else {
+	  val = location(position, pres, i, j);
+	  for (k = chr->mpb[j]; k > val; k--) {
+	    // WHC: from last mutation, move everything 1 position backword, until new mutation
+	    chr->mutation[j][k] = chr->mutation[j][k - 1];
+	  }
+	  chr->mutation[j][val] = position;
+	  chr->mpb[j]++;
+	}
+	// ELABORATES MUTTABLE
+	muttable[MutCount].position = position;
+	muttable[MutCount].block = j;
+	MutCount++;
+
+
+	// WHC: I think this step is for making sure new mutation could only arise on non-polymorphic positions, on both blocks
+	// IF MUTATION APPEARS IN BLOCK 0 OR 2, COPY THE MUTATION TO THE OTHER BLOCK
+	// if (j == 0 && duFreq == true) {
+	if (j == 0 && duFreq == true && duFreq_2 == false) {
+	  // WHC: in phaseII() but not in phaseIV()
+	  muttable[MutCount].block = 2;
+	  muttable[MutCount].position = muttable[MutCount - 1].position;
+	  MutCount++;
+	} else if (j == 0 && duFreq_2 == true) {
+	  // WHC: if is in phaseIV(), then should copy information from 0 to 2 and 4
+	  // WHC: copy to dup_1
+	  muttable[MutCount].block = 2;
+	  muttable[MutCount].position = muttable[MutCount - 1].position;
+	  MutCount++;
+
+	  // WHC: copy to dup_2
+	  muttable[MutCount].block = 4;
+	  muttable[MutCount].position = muttable[MutCount - 2].position;
+	  MutCount++;
+	}
+      
+	//      if (j == 2) {
+	if (j == 2 && duFreq_2 == false) {
+	  // WHC: in phaseII() but not in phaseIV()
+	  muttable[MutCount].block = 0;
+	  muttable[MutCount].position = muttable[MutCount - 1].position;
+	  MutCount++;
+	} else if (j == 2 && duFreq_2 == true) {
+	  // WHC: in phaseIV()
+	  // WHC: or in phaseV()
+	  // WHC: copy to dup_1
+	  muttable[MutCount].block = 0;
+	  muttable[MutCount].position = muttable[MutCount - 1].position;
+	  MutCount++;
+
+	  // WHC: copy to dup_2
+	  muttable[MutCount].block = 4;
+	  muttable[MutCount].position = muttable[MutCount - 2].position;
+	  MutCount++;
+	}
+
+	// WHC: FORGOT the j == 4!!!! Causing trouble in muttable[]!!!! BUT, I am so happy figuring this out!!!
+
+	if (j == 4) {
+	  // WHC: must be in or after phaseIV()
+	  muttable[MutCount].block = 0;
+	  muttable[MutCount].position = muttable[MutCount - 1].position;
+	  MutCount++;
+
+	  // WHC: copy to dup_2
+	  muttable[MutCount].block = 2;
+	  muttable[MutCount].position = muttable[MutCount - 2].position;
+	  MutCount++;
+	}
+      
+      }
+
+    } else {
+      cout << "WRONG\n";
+      exit(0);
     }
+
   }
 
 }
@@ -2284,6 +2388,8 @@ void mutation_for_phaseVI(float probability, int i, int pres) {
 	}
       }
     }
+    
+    if (j != 1) {
     for(int muts=0; muts < mutEvents; muts++){
       // Randomly choose one NEW mutation position
       do {
@@ -2368,6 +2474,96 @@ void mutation_for_phaseVI(float probability, int i, int pres) {
 	MutCount++;
       }
       
+    }
+    } else if (j == 1) {
+    for(int muts=0; muts < mutEvents; muts++){
+      // Randomly choose one NEW mutation position
+      do {
+	position = (int) (rand() % (BLOCKLENGTH));
+      } while (multihit_single[position] == true);
+      multihit_single[position] = true;
+
+      // If there are no previous mutations or if the new mutation fall behind all previous ones...,
+      if (chr->mpb[j] == 0 || position > chr->mutation[j][chr->mpb[j] - 1]) {
+	// Simply add the mutation
+	chr->mutation[j][chr->mpb[j]] = position;
+	chr->mpb[j]++;
+      }// Otherwise, shift the mutations one position so that mutations appear ordered in the chr.mutation array
+      // WHC: otherwise shift many positions; I think could be done by stable_sort()?
+      else {
+	val = location(position, pres, i, j);
+	for (k = chr->mpb[j]; k > val; k--) {
+	  // WHC: from last mutation, move everything 1 position backword, until new mutation
+	  chr->mutation[j][k] = chr->mutation[j][k - 1];
+	}
+	chr->mutation[j][val] = position;
+	chr->mpb[j]++;
+      }
+      // ELABORATES MUTTABLE
+      muttable[MutCount].position = position;
+      muttable[MutCount].block = j;
+      MutCount++;
+
+
+      // WHC: I think this step is for making sure new mutation could only arise on non-polymorphic positions, on both blocks
+      // IF MUTATION APPEARS IN BLOCK 0 OR 2, COPY THE MUTATION TO THE OTHER BLOCK
+      // if (j == 0 && duFreq == true) {
+      if (j == 0 && duFreq == true && duFreq_2 == false) {
+	// WHC: in phaseII() but not in phaseIV()
+	muttable[MutCount].block = 2;
+	muttable[MutCount].position = muttable[MutCount - 1].position;
+	MutCount++;
+      } else if (j == 0 && duFreq_2 == true) {
+	// WHC: if is in phaseIV(), then should copy information from 0 to 2 and 4
+	// WHC: copy to dup_1
+	muttable[MutCount].block = 2;
+	muttable[MutCount].position = muttable[MutCount - 1].position;
+	MutCount++;
+
+	// WHC: copy to dup_2
+	muttable[MutCount].block = 4;
+	muttable[MutCount].position = muttable[MutCount - 2].position;
+	MutCount++;
+      }
+      
+      //      if (j == 2) {
+      if (j == 2 && duFreq_2 == false) {
+	// WHC: in phaseII() but not in phaseIV()
+	muttable[MutCount].block = 0;
+	muttable[MutCount].position = muttable[MutCount - 1].position;
+	MutCount++;
+      } else if (j == 2 && duFreq_2 == true) {
+	// WHC: in phaseIV()
+	// WHC: or in phaseV()
+	// WHC: copy to dup_1
+	muttable[MutCount].block = 0;
+	muttable[MutCount].position = muttable[MutCount - 1].position;
+	MutCount++;
+
+	// WHC: copy to dup_2
+	muttable[MutCount].block = 4;
+	muttable[MutCount].position = muttable[MutCount - 2].position;
+	MutCount++;
+      }
+
+      // WHC: FORGOT the j == 4!!!! Causing trouble in muttable[]!!!! BUT, I am so happy figuring this out!!!
+
+      if (j == 4) {
+	// WHC: must be in or after phaseIV()
+	muttable[MutCount].block = 0;
+	muttable[MutCount].position = muttable[MutCount - 1].position;
+	MutCount++;
+
+	// WHC: copy to dup_2
+	muttable[MutCount].block = 2;
+	muttable[MutCount].position = muttable[MutCount - 2].position;
+	MutCount++;
+      }
+      
+    }
+    } else {
+      cout << "wrong\n";
+      exit(0);
     }
   }
 
@@ -2989,7 +3185,7 @@ void FSL(int hh) {
     if (muttable[m].frequency == 0 && muttable[m].block == 1) {
       // WHC: this should not be correct???? single-block should have its own multihit vector????
       
-      multihit[muttable[m].position] = false;
+      multihit_single[muttable[m].position] = false;
     }
     if (muttable[m].frequency == 0 && muttable[m].block == 0 && duFreq == false) {
       multihit[muttable[m].position] = false;
@@ -3345,7 +3541,11 @@ int location(int position, int h, int ind, int j) {// Found the position in the 
 void EraseFixedMutations(int fixed, int block, int prev) {
   int ii, k;
 
+  if (block != 1) {
   multihit[fixed] = false;
+  } else {
+    multihit_single[fixed] = false;
+  }
   for (ii = 0; ii < 2 * N; ii++) {
     pointer[prev][ii]->mpb[block]--;
     for (k = location(fixed, prev, ii, block); k < pointer[prev][ii]->mpb[block]; k++) {

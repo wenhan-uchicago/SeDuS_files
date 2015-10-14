@@ -96,3 +96,13 @@ THis is fine for them, but not for us. Because in phaseVI(), we want to keep a b
 important: in void phaseVI(), I seemed to randomly mix duplicontent_2[], instead of lose_of_duplicontent[]!!!! (May be the reason for single-copy's wired increase...)
 
 NO! I DID randomly mixed them...
+
+================
+
+IMPORTANT: should I change crossoverRatio before phaseIV() or afther phaseIV()???
+
+================
+
+AS they use a single multihit[] for all blocks (including the single-copy one), I will just creat a multihit_single[] for single_copy to see if this is causing the increase of single-copy
+
+ALSO, in struct chrom {}, the mutation[] is only BLOCKLENGTH / 2 long... maybe an issue???
