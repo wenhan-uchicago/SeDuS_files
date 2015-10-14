@@ -84,3 +84,9 @@ Also, the information in mpb[4] was not properly set to 0 for child produced by 
 ALSO, may need to change copychr() too!!
 
 ALSO, may need to do this for mpb[2] for phaseVI() too!!!
+
+================
+
+I think they are WRONG!! As long as the PROMETHEUS = 100 (set it smaller), the mufreq will happend to be > 1 in SiteFrequencySpectrumPrint(); because s = (int) n / 2...
+
+THis is fine for them, but not for us. Because in phaseVI(), we want to keep a balance between #blocks = 4 and #blocks = 5, so, s = (int) n / 2 does not work

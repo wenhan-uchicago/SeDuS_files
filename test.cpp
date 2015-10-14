@@ -21,9 +21,11 @@ using namespace std;
 
 
 int main() {
-  int k;
-  for (k = 0; k < 10; ++k) {}
-  cout << k << endl;
+  float s = 2.5;
+  cout << s << endl;
+  s = (int) s;
+  cout << s << endl;
+  
   return 0;
 }
 
