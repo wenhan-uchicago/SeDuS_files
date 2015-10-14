@@ -58,12 +58,12 @@ using namespace std;
 //// SIMULATION PRINCIPAL VARIABLES ////
 ////////////////////////////////////////
 
-int N = 50; // Population size
+int N = 100; // Population size
 
 // WHC: PROMETHEUS should be an even number
 int PROMETHEUS = 100; // Number of generations for each genealogy
 
-int SUPERTIME = 1; // Number of simulations per execution
+int SUPERTIME = 10; // Number of simulations per execution
 int BLOCKLENGTH = 10000; // Block length
 int SAMPLE = 20; // Sample size
 #define MUTTABLESIZE 1000000 // Maximum number of mutations (size of muttable)
@@ -132,7 +132,8 @@ struct chrom { // Chromosomes
   std::vector<std::vector<int>> mutation;
   chrom(){
     mutation.resize(B);
-    for(unsigned int i=0;i<mutation.size();i++){mutation[i].resize(BLOCKLENGTH/2);} // WHC: is the size just for saving memory
+    //    for(unsigned int i=0;i<mutation.size();i++){mutation[i].resize(BLOCKLENGTH/2);} // WHC: is the size just for saving memory?
+    for(unsigned int i=0;i<mutation.size();i++){mutation[i].resize(BLOCKLENGTH);} // WHC: is the size just for saving memory
   }
 };
 
@@ -475,7 +476,9 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
   mu = THETA / (4 * N);
   rho = R / (4 * N * BLOCKLENGTH);
   kappa = C / (4 * N * meanTractLength);
-	
+
+  kappa = 0;
+  
   TIMELENGTH = (int) BIGTIME * N; 
   BURNIN = (int) BURNINTIME * N; 
 
@@ -591,25 +594,25 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       //      crossoverRatio[maxNumOfHS] = {0.15, 0.8, 0.05}; // Relative weights of crossover regions
 
       // need to change this here
-      crossoverRatio[0] = 0.01;
-      crossoverRatio[1] = 0.98;
-      crossoverRatio[2] = 0.01;
+      crossoverRatio[0] = 0.50;
+      crossoverRatio[1] = 0.25;
+      crossoverRatio[2] = 0.25;
       
       
       /* PHASE IV: STRUCTURED_2 TRAJECTORY */
       // WHC: for generating dup_2
-      //      cout << "PHASE IV" << '\n';
+      cout << "PHASE IV" << '\n';
       // WHC: I do not think ret.prev, ret.pres is necessary...
-      //      phaseIV(timeToFixation,0, 1, kappa);
+      phaseIV(timeToFixation,0, 1, kappa);
       /* END PHASE IV */
 
       /* PHASE V: RESOLUTION after 2nd duplication */
-      //      cout << "PHASE V" << '\n';
-      //      phaseV(kappa);
+      cout << "PHASE V" << '\n';
+      phaseV(kappa);
 
       /* PHASE VI: LOSING dup_1 */
-      //      cout << "PHASE VI" << '\n';
-      //      phaseVI(0, 1, kappa);
+      cout << "PHASE VI" << '\n';
+      phaseVI(0, 1, kappa);
       
       for (j = 0; j < B+2; j++) {
       	for (o = 0; o < numofsamples; o++) {samplefile[j][o][0] << "\n";samplefile[j][o][1] << "\n";}
@@ -688,6 +691,7 @@ void phaseII(int timeToFixation,int prev, int pres, float k){
   // BURNIN/PROMETHEUS -> (BURNIN+STRUCTURED)/PROMETHEUS (30 -> 50)
   for (era = (int) BURNIN / PROMETHEUS; era < (int) (BURNIN + STRUCTURED) / PROMETHEUS; era++) {
     // GENEALOGY (with recombination and taking into account that duplicated chr have duplicated ancestor)
+    cout << "running phaseII() era = " << era << '\n';
     genealogy(rho * BLOCKLENGTH, 1, (2 * k * BLOCKLENGTH));
     int prom=-1;
     prev = 0;
@@ -721,8 +725,10 @@ void phaseII(int timeToFixation,int prev, int pres, float k){
 
 void phaseIII(float k){
   bool does_print = false;
+  bool run = false;
   for (era = (int) (BURNIN + STRUCTURED) / PROMETHEUS; era < (int) TIMELENGTH / PROMETHEUS; era++) {
     // GENEALOGY (all chr have the duplication, there are no two populations to take into account)
+    cout << "running phaseIII() era = " << era << '\n';
     genealogy(rho * BLOCKLENGTH, 0, (2 * k * BLOCKLENGTH));
     int prom=-1;
     int prev = 0;
@@ -752,13 +758,14 @@ void phaseIII(float k){
       does_print=true;
     }
 
-    bool run = false;
+    /* WHC: testing whether a mutational position has occured more than once for each block
     if (run == false) {
       for (int r = 0; r < MutCount; ++r) {
 	cout << muttable[r].position << " " << muttable[r].block << endl;
       }
       run = true;
     }
+    */
     statistics(pres, does_print);
 
   }
@@ -769,6 +776,7 @@ void phaseIII(float k){
 
 void phaseIV(int timeToFixation,int prev, int pres, float k){
   bool does_print = false;
+  bool run = false;
   // Generating Fixation Trajectory in a diploid population
   int endTime = GenerateFixationTrajectory(STRUCTURED_2 + 1, timeToFixation);
   // Picking the first chromosome with the duplication (eva)
@@ -840,6 +848,16 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
     //    cout << "The number of chroms that are carrying dup_2 = " << counting_dup_2 << '\n';
     /* WHC: the end of counting
     /* ================================================================ */
+
+    /* WHC: testing for whether a muttalbe[] is added twice
+    if (run == false) {
+      for (int r = 0; r < MutCount; ++r) {
+	cout << muttable[r].position << " " << muttable[r].block << endl;
+      }
+      run = true;
+    }
+    */
+
     
   }
 }
@@ -853,6 +871,7 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
 
 void phaseV(float k){
   bool does_print = false;
+  bool run = false;
   for (era = (int) (TIMELENGTH + STRUCTURED_2) / PROMETHEUS; era < (int) (TIMELENGTH + STRUCTURED_2 + PHASE_V_LENGTH) / PROMETHEUS; era++) {
 
     cout << "Running phaseV era = " << era << '\n';
@@ -885,6 +904,15 @@ void phaseV(float k){
     if(era == ((int) (TIMELENGTH/PROMETHEUS)-1)){
       does_print=true;
     }
+
+    /* WHC: testing, as before, to see if muttable[] has redundency
+    if (run == false) {
+      for (int r = 0; r < MutCount; ++r) {
+	cout << muttable[r].position << " " << muttable[r].block << endl;
+      }
+      run = true;
+    }
+    */
     statistics(pres, does_print);
   }
 }
@@ -896,6 +924,7 @@ void phaseV(float k){
 
 void phaseVI(int prev, int pres, float k) {
   bool does_print = false;
+  bool run = false;
   // Generating Fixation Trajectory in a diploid population
   Generate_phaseVI_trajectory(2); // WHC: trajectory (absolute number of chroms carrying 4 blocks instead of 5)
 
@@ -972,8 +1001,19 @@ void phaseVI(int prev, int pres, float k) {
       } else {skip = false;}
     }
     // CALCULATE THE STATISTICS
+
+    /* WHC: testing for muttable[] redudency
+    if (run == false) {
+      for (int r = 0; r < MutCount; ++r) {
+	cout << muttable[r].position << " " << muttable[r].block << endl;
+      }
+      run = true;
+    }
+    */
+    
     statistics_for_phaseVI(pres, does_print);
 
+    
     // WHC: for printing block_1's mutation positions
     /*
     for (int i = 0; i < 2 * N; ++i) {
@@ -3574,7 +3614,8 @@ void EraseFixedMutations(int fixed, int block, int prev) {
 float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
   int s = n;
   int p, i, j, k, index, m, number, duplicationFreq;
-  int xi[2 * s], list [2 * N];
+  //  int xi[2 * s], list [2 * N];
+  int xi[2 * s], list [MutCount];
   // WHC: any good reason for list[] size less than 2*N??????
   float value, mufreq;
   static float results[] = {0, 0};
@@ -3715,7 +3756,9 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
 float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool does_print) {
   int s = n;
   int p, i, j, k, index, m, number, duplicationFreq;
-  int xi[2 * s], list [2 * N];
+  //  int xi[2 * s], list [2 * N];
+  // WHC: I think list[2*N] is incorrect
+  int xi[2 * s], list[MutCount];
   float value, mufreq;
   static float results[] = {0, 0};
 
