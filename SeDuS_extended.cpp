@@ -58,14 +58,14 @@ using namespace std;
 //// SIMULATION PRINCIPAL VARIABLES ////
 ////////////////////////////////////////
 
-int N = 200; // Population size
+int N = 50; // Population size
 
 // WHC: PROMETHEUS should be an even number
 int PROMETHEUS = 100; // Number of generations for each genealogy
 
-int SUPERTIME = 10; // Number of simulations per execution
+int SUPERTIME = 1; // Number of simulations per execution
 int BLOCKLENGTH = 10000; // Block length
-int SAMPLE = 50; // Sample size
+int SAMPLE = 20; // Sample size
 #define MUTTABLESIZE 1000000 // Maximum number of mutations (size of muttable)
 
 // #define B 3 // Maximum number of blocks per chromosome
@@ -598,18 +598,18 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       
       /* PHASE IV: STRUCTURED_2 TRAJECTORY */
       // WHC: for generating dup_2
-      cout << "PHASE IV" << '\n';
+      //      cout << "PHASE IV" << '\n';
       // WHC: I do not think ret.prev, ret.pres is necessary...
-      phaseIV(timeToFixation,0, 1, kappa);
+      //      phaseIV(timeToFixation,0, 1, kappa);
       /* END PHASE IV */
 
       /* PHASE V: RESOLUTION after 2nd duplication */
-      cout << "PHASE V" << '\n';
-      phaseV(kappa);
+      //      cout << "PHASE V" << '\n';
+      //      phaseV(kappa);
 
       /* PHASE VI: LOSING dup_1 */
-      cout << "PHASE VI" << '\n';
-      phaseVI(0, 1, kappa);
+      //      cout << "PHASE VI" << '\n';
+      //      phaseVI(0, 1, kappa);
       
       for (j = 0; j < B+2; j++) {
       	for (o = 0; o < numofsamples; o++) {samplefile[j][o][0] << "\n";samplefile[j][o][1] << "\n";}
@@ -751,7 +751,16 @@ void phaseIII(float k){
     if(era == ((int) (TIMELENGTH/PROMETHEUS)-1)){
       does_print=true;
     }
+
+    bool run = false;
+    if (run == false) {
+      for (int r = 0; r < MutCount; ++r) {
+	cout << muttable[r].position << " " << muttable[r].block << endl;
+      }
+      run = true;
+    }
     statistics(pres, does_print);
+
   }
 }
 
@@ -3566,6 +3575,7 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
   int s = n;
   int p, i, j, k, index, m, number, duplicationFreq;
   int xi[2 * s], list [2 * N];
+  // WHC: any good reason for list[] size less than 2*N??????
   float value, mufreq;
   static float results[] = {0, 0};
 
