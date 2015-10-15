@@ -889,13 +889,18 @@ void phaseV(float k){
       }
       prom = t;
       if(skip == false){
-	parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);// PARENT PICKING (with recombination)
-	mutation(mu, i,pres);// MUTATION and CONVERSION (for each fertile chromosome)
+	//	parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);// PARENT PICKING (with recombination)
+	// WHC: use phaseVI's function to test
+	
+	parentpicking_for_phaseVI(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);
+	//	mutation(mu, i,pres);// MUTATION and CONVERSION (for each fertile chromosome)
+	mutation_for_phaseVI(mu, i,pres);
 	if(IGCmatrix[i][t]==true && (i%2 == 0)){
 	  skip = true;
 	  int otheri = i+1;
 	  parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,otheri,t);// PARENT PICKING (with recombination)
-	  mutation(mu, otheri,pres);// MUTATION and CONVERSION (for each fertile chromosome)
+	  //	  mutation(mu, otheri,pres);// MUTATION and CONVERSION (for each fertile chromosome)
+	  mutation_for_phaseVI(mu, otheri,pres);
 	}
 	conversion(kappa, t, i, pres, donorRatio, sameDifIGC);							
       }else {skip = false;}
@@ -913,7 +918,8 @@ void phaseV(float k){
       run = true;
     }
     */
-    statistics(pres, does_print);
+    //    statistics(pres, does_print);
+    statistics_for_phaseVI(pres, does_print);
   }
 }
 
@@ -951,7 +957,17 @@ void phaseVI(int prev, int pres, float k) {
   // WHC: lose_of_duplication() is for losing one dup_1 block in one chrom (i.e. eva)
   // Duplicate eva (create a new block with old mutations...)
   //  duplication_2(eva,pres,dupType); // WHC: the pres (present) here, will be used as prev (previous) in duplication(); because this is the start of PhaseII
-  lose_of_duplication(eva, pres); // WHC: as will lose dup_1 block from eva chrom, there is no need for the dupType parameter
+
+
+
+  // WHC: to test what's wrong
+
+    lose_of_duplication(eva, pres); // WHC: as will lose dup_1 block from eva chrom, there is no need for the dupType parameter
+
+
+
+
+  
   loseFreq = true;
 
   // BURNIN/PROMETHEUS -> (BURNIN+STRUCTURED)/PROMETHEUS (30 -> 50)
@@ -966,7 +982,13 @@ void phaseVI(int prev, int pres, float k) {
     // WHC: cout << "TIMELENGTH = " << TIMELENGTH << " " << "TIMELENGTH + STRUCTURED_2 = " << TIMELENGTH + STRUCTURED_2 << '\n';
     // GENEALOGY (with recombination and taking into account that duplicated chr have duplicated ancestor)
     //    genealogy(rho * BLOCKLENGTH, 1, (2 * k * BLOCKLENGTH));
+
+    /*
     genealogy_2(rho * BLOCKLENGTH, 2, (3 * k * BLOCKLENGTH)); // WHC: 2 means it is in phaseVI(), not phaseIV()
+
+    */
+    genealogy_2(rho * BLOCKLENGTH, 0, (3 * k * BLOCKLENGTH));
+    
     int prom=-1;
     prev = 0;
     pres = 1;
