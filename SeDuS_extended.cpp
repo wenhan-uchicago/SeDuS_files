@@ -106,7 +106,7 @@ int STRUCTURED_2 = (int) STRUCTURED_2_TIME * N;
 
 float THETA = 0.001; // Population scaled mutation rate: THETA = 4 N mu
 //float R = 10; // Population scaled crossover rate: R = 4 N rho*BLOCKLENGTH
-float R = 1000;
+float R = 100;
 float C = 0.5; // Population scaled gene conversion rate: C = 4N*kappa*lambda
 
 // int numHS = 1; // Number of hotspots
@@ -133,8 +133,8 @@ struct chrom { // Chromosomes
   std::vector<std::vector<int>> mutation;
   chrom(){
     mutation.resize(B);
-    //    for(unsigned int i=0;i<mutation.size();i++){mutation[i].resize(BLOCKLENGTH/2);} // WHC: is the size just for saving memory?
-    for(unsigned int i=0;i<mutation.size();i++){mutation[i].resize(BLOCKLENGTH);} // WHC: is the size just for saving memory
+    for(unsigned int i=0;i<mutation.size();i++){mutation[i].resize(BLOCKLENGTH/2);} // WHC: is the size just for saving memory? YES
+    //    for(unsigned int i=0;i<mutation.size();i++){mutation[i].resize(BLOCKLENGTH);} // WHC: is the size just for saving memory
   }
 };
 
@@ -237,7 +237,10 @@ int era, run; // t = generation inside each era, era = PROMETHEUS generations in
 // WHC: only allow 30 * 1000?? 30->structured, 1000->#individuals
 int fixationTrajectory[30000 + 1]; // Absolute frequency of the duplication in each generation of fixation process
 
-int phaseVI_trajectory[40000 + 1];
+
+
+// WHC: remember to change before use
+int phaseVI_trajectory[30000 + 1];
 
 std::vector<bool> multihit; // Record the positions in which a mutation has occurred
 
@@ -368,7 +371,18 @@ bool sorty (fertility_info,fertility_info);
 //////////////
 
 int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed from command line
-   
+
+  //  cout << sizeof(phaseVI_trajectory) / sizeof(phaseVI_trajectory[0]) << endl;
+  //  cout << sizeof(fixationTrajectory) / sizeof(fixationTrajectory[0]) << endl;
+  if (sizeof(phaseVI_trajectory) / sizeof(phaseVI_trajectory[0]) < PHASE_VI_LENGTH) {
+    cout << "phaseVI_trajectory[] length too small, need to be longer!\n";
+    exit(0);
+  }
+
+  if (sizeof(fixationTrajectory) / sizeof(fixationTrajectory[0]) < STRUCTUREDTIME || sizeof(fixationTrajectory) / sizeof(fixationTrajectory[0]) < STRUCTURED_2_TIME) {
+    cout << "fixationTrajectory[] length too small.\n";
+    exit(0);
+  }
   using namespace std;
   int correctArguments = 0;
    
@@ -882,6 +896,8 @@ void phaseV(float k){
     int prev = 0;
     int pres = 1;
     bool skip = false;
+
+    cout << "The length of this fertility_list is " << fertility_list.size() << endl;
     for (std::vector<fertility_info>::iterator it=fertility_list.begin(); it!=fertility_list.end(); ++it){
       int i = (*it).x;
       int t = (*it).y;
