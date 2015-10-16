@@ -63,9 +63,9 @@ int N = 100; // Population size
 // WHC: PROMETHEUS should be an even number
 int PROMETHEUS = 100; // Number of generations for each genealogy
 
-int SUPERTIME = 10; // Number of simulations per execution
+int SUPERTIME = 20; // Number of simulations per execution
 int BLOCKLENGTH = 10000; // Block length
-int SAMPLE = 20; // Sample size
+int SAMPLE = 50; // Sample size
 #define MUTTABLESIZE 1000000 // Maximum number of mutations (size of muttable)
 
 // #define B 3 // Maximum number of blocks per chromosome
@@ -105,7 +105,8 @@ int STRUCTURED = (int) STRUCTUREDTIME * N; // Number of generations in phase II
 int STRUCTURED_2 = (int) STRUCTURED_2_TIME * N;
 
 float THETA = 0.001; // Population scaled mutation rate: THETA = 4 N mu
-float R = 10; // Population scaled crossover rate: R = 4 N rho*BLOCKLENGTH
+//float R = 10; // Population scaled crossover rate: R = 4 N rho*BLOCKLENGTH
+float R = 1000;
 float C = 0.5; // Population scaled gene conversion rate: C = 4N*kappa*lambda
 
 // int numHS = 1; // Number of hotspots
@@ -889,18 +890,22 @@ void phaseV(float k){
       }
       prom = t;
       if(skip == false){
-	//	parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);// PARENT PICKING (with recombination)
+	parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);// PARENT PICKING (with recombination)
+
 	// WHC: use phaseVI's function to test
 	
-	parentpicking_for_phaseVI(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);
+	//	parentpicking_for_phaseVI(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);
 	//	mutation(mu, i,pres);// MUTATION and CONVERSION (for each fertile chromosome)
-	mutation_for_phaseVI(mu, i,pres);
+
+	//mutation_for_phaseVI(mu, i,pres);
+	mutation(mu, i,pres);
+	
 	if(IGCmatrix[i][t]==true && (i%2 == 0)){
 	  skip = true;
 	  int otheri = i+1;
 	  parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,otheri,t);// PARENT PICKING (with recombination)
-	  //	  mutation(mu, otheri,pres);// MUTATION and CONVERSION (for each fertile chromosome)
-	  mutation_for_phaseVI(mu, otheri,pres);
+	  mutation(mu, otheri,pres);// MUTATION and CONVERSION (for each fertile chromosome)
+	  //mutation_for_phaseVI(mu, otheri,pres);
 	}
 	conversion(kappa, t, i, pres, donorRatio, sameDifIGC);							
       }else {skip = false;}
@@ -918,8 +923,9 @@ void phaseV(float k){
       run = true;
     }
     */
-    //    statistics(pres, does_print);
-    statistics_for_phaseVI(pres, does_print);
+    statistics(pres, does_print);
+    //    statistics_for_phaseVI(pres, does_print);
+    
   }
 }
 
@@ -983,11 +989,11 @@ void phaseVI(int prev, int pres, float k) {
     // GENEALOGY (with recombination and taking into account that duplicated chr have duplicated ancestor)
     //    genealogy(rho * BLOCKLENGTH, 1, (2 * k * BLOCKLENGTH));
 
-    /*
+
     genealogy_2(rho * BLOCKLENGTH, 2, (3 * k * BLOCKLENGTH)); // WHC: 2 means it is in phaseVI(), not phaseIV()
 
-    */
-    genealogy_2(rho * BLOCKLENGTH, 0, (3 * k * BLOCKLENGTH));
+
+    //    genealogy_2(rho * BLOCKLENGTH, 0, (3 * k * BLOCKLENGTH));
     
     int prom=-1;
     prev = 0;
@@ -4200,7 +4206,7 @@ void Generate_phaseVI_trajectory(int mode) {
   } else if (mode == 2) {
     phaseVI_trajectory[0] = 1;
     for (int i = 1; i < (PHASE_VI_LENGTH) + 1; ++i) {
-      if (phaseVI_trajectory[i - 1] < (2 * N) * (2.0 / 4)) {
+      if (phaseVI_trajectory[i - 1] < N) {
 	phaseVI_trajectory[i] = phaseVI_trajectory[i - 1] + 1;
       } else {
 	phaseVI_trajectory[i] = (int) (2 * N * (1.0 / 2));
