@@ -2263,6 +2263,20 @@ void mutation(float probability, int i, int pres) {
   chrom * chr;
   chr = pointer[pres][i];
 
+  int count_multihit = 0, count_multihit_single = 0;
+  for (int t = 0; t < BLOCKLENGTH; ++t) {
+    if (multihit[t] == true) {
+      ++count_multihit;
+    }
+    if (multihit_single[t] == true) {
+      ++count_multihit_single;
+    }
+  }
+  if (count_multihit >= BLOCKLENGTH || count_multihit_single >= BLOCKLENGTH) {
+    cout << "The multihit or multihit_single is larger than BLOCKLENGTH.\nWill have an infinate loop!\n";
+    exit(0);
+  }
+  
   for (j = 0; j < chr->b; j++) {
 
     mutEvents=0;
@@ -3098,6 +3112,37 @@ void statistics(int prev, bool does_print) {
 
   // WHC: FSL() will delete fixed/lost mutations
   // WHC: and make a new muttable[]
+
+  /* TESTING PURPOSE */
+  cout << "The MutCount is " << MutCount << '\n';
+  int num_of_true_in_multihit = 0, num_of_false_in_multihit = 0;
+  for (int i = 0; i < BLOCKLENGTH; ++i) {
+    if (multihit[i] == true) {
+      num_of_true_in_multihit++;
+    } else if (multihit[i] == false) {
+      num_of_false_in_multihit++;
+    } else {
+      cout << "WRONG WRONG\n";
+      exit(0);
+    }
+  }
+  cout << "The number of true in multihit is " << num_of_true_in_multihit << " and false is " << num_of_false_in_multihit << endl;
+
+  int num_of_true_in_multihit_single = 0, num_of_false_in_multihit_single = 0;
+  for (int i = 0; i < BLOCKLENGTH; ++i) {
+    if (multihit_single[i] == true) {
+      num_of_true_in_multihit_single++;
+    } else if (multihit_single[i] == false) {
+      num_of_false_in_multihit_single++;
+    } else {
+      cout << "WRONG WRONG\n";
+      exit(0);
+    }
+  }
+  cout << "The number of true in multihit_single is " << num_of_true_in_multihit_single << " and false is " << num_of_false_in_multihit_single << endl;
+  cout << "Total number of true is " << num_of_true_in_multihit + num_of_true_in_multihit_single << endl;
+
+  
   
   FSL(prev); // Creating the summary vector fixedLostForAll
   // INFORMATION RECOVERED FROM SAMPLES
@@ -3161,7 +3206,34 @@ void FSL(int hh) {
   for (m = 0; m < MutCount; m++) {
     muttable[m].frequency = muFrequencyIntWholePopAndSample(hh, muttable[m].position, muttable[m].block, N);
     // WHC: What if this block is lost, should I use (N * 2) or the #chroms carrying this block????
-    muttable[m].frequency = ((float) muttable[m].frequency) / (N * 2);
+    // WHC: the previous question may be vitally important, since this could cause a continuously increase of multihit[]==true
+
+    // WHC: IMPORTANT need to doulbe check here!!!!???
+    
+    // muttable[m].frequency = ((float) muttable[m].frequency) / (N * 2);
+    if (muttable[m].block == 2 && loseFreq == false) {
+      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 2, N));
+    } else if (muttable[m].block == 2 && loseFreq == true) {
+      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq_for_phaseVI(hh, 2, N));
+    } else if (muttable[m].block == 4 && loseFreq == false) {
+      // in phaseIV (when block_4 not fixed) and in phaseV (which should always be 2*N
+      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 4, N));
+    } else if (muttable[m].block == 4 && loseFreq == true) {
+      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 4, N));
+      if (2 * N != DupliFreq(hh, 4, N)) {
+	cout << "This 2 values should equal!\n";
+	exit(0);
+      }
+    } else if (muttable[m].block == 0 || muttable[m].block == 1) {
+      muttable[m].frequency = ((float) muttable[m].frequency) / (N * 2);
+    } else if (muttable[m].block == 3) {
+      // do nothing
+      continue;
+    } else {
+      cout << "INcorrect\n";
+      exit(0);
+    }
+    
   }
   for (m = 0, mm = 0; m < MutCount; m++) {
     // SET MULTIHIT TO FALSE FOR MUTATIONS THAT HAVE BEEN LOST
@@ -3291,7 +3363,8 @@ void FSL(int hh) {
 	  otherm_2 = SearchMutation(2, muttable[m].position, MutCount);
 	} else if (muttable[m].block == 3) {
 	  // WHC: we just don't care about what's going on in 3
-	  
+	  cout << "Should already skipped block == 3\n";
+	  exit(0);
 	} else {
 	  cout << "hi, something wrong in FSL() when considering phaseIV().\n";
 	  exit(0);
@@ -3536,6 +3609,7 @@ void EraseFixedMutations(int fixed, int block, int prev) {
     multihit_single[fixed] = false;
   }
   for (ii = 0; ii < 2 * N; ii++) {
+    if (pointer[prev][ii]->mpb[block] == 0) { continue; } // WHC: vital for this
     pointer[prev][ii]->mpb[block]--;
     for (k = location(fixed, prev, ii, block); k < pointer[prev][ii]->mpb[block]; k++) {
       pointer[prev][ii]->mutation[block][k] = pointer[prev][ii]->mutation[block][k + 1];
@@ -3564,7 +3638,7 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
   results[1] = 0;
 
   if(block == 2){
-    //duplicationFreq = DupliFreq(prev, 2, n);
+    //duplicationFreq = Freq(prev, 2, n);
     duplicationFreq = DupliFreq(h, 2, n);
     // WHC: why divided by 2?? Because DupliFreq() returns the number of chroms, but s is the number of individuals!!
     s = (int) duplicationFreq/2;
