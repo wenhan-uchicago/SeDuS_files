@@ -58,12 +58,15 @@ using namespace std;
 //// SIMULATION PRINCIPAL VARIABLES ////
 ////////////////////////////////////////
 
+int how_many_new_mutations_in_dup = 0;
+
+
 int N = 100; // Population size
 
 // WHC: PROMETHEUS should be an even number
 int PROMETHEUS = 100; // Number of generations for each genealogy
 
-int SUPERTIME = 20; // Number of simulations per execution
+int SUPERTIME = 1; // Number of simulations per execution
 int BLOCKLENGTH = 10000; // Block length
 int SAMPLE = 50; // Sample size
 #define MUTTABLESIZE 1000000 // Maximum number of mutations (size of muttable)
@@ -106,7 +109,7 @@ int STRUCTURED_2 = (int) STRUCTURED_2_TIME * N;
 
 float THETA = 0.001; // Population scaled mutation rate: THETA = 4 N mu
 //float R = 10; // Population scaled crossover rate: R = 4 N rho*BLOCKLENGTH
-float R = 100;
+float R = 10;
 float C = 0.5; // Population scaled gene conversion rate: C = 4N*kappa*lambda
 
 // int numHS = 1; // Number of hotspots
@@ -323,6 +326,9 @@ void statistics(int, bool); // Execution of all the statistic calculations (for 
 void statistics_for_phaseVI(int, bool);
 
 void FSL(int); // Count of All the Segregating, Fixed, Lost and Shared sites
+
+// WHC: a test FSL(), to solve the problem that multihit[] == true just grows up since phaseIV()
+void FSL_since_phaseIV(int);
 
 void copychr(int, int, int, int); // Copy a chromosome (when there is no recombination)
 
@@ -825,6 +831,8 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
     pres = 1;
     bool skip = false;
 
+    how_many_new_mutations_in_dup = 0;
+    
     // WHC: I think it is good until here
     for (std::vector<fertility_info>::iterator it=fertility_list.begin(); it!=fertility_list.end(); ++it){
       // as long as PROMETHEUS is an even number, always end up being prov = 0, pres = 1
@@ -850,6 +858,9 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
       }else {skip = false;}
     }
     // CALCULATE THE STATISTICS
+
+    cout << "Then, there are " << how_many_new_mutations_in_dup << " introduced.\n\n";
+    
     statistics(pres, does_print);
 
     /* ================================================================ */
@@ -2279,6 +2290,10 @@ void mutation(float probability, int i, int pres) {
   
   for (j = 0; j < chr->b; j++) {
 
+    if (j == 3) {
+      continue; 	// WHC: skip block 3
+    }
+    
     mutEvents=0;
     p = rand() / ((float) RAND_MAX + 1);
     if (p < (probability * BLOCKLENGTH)) { mutEvents++;
@@ -2290,6 +2305,11 @@ void mutation(float probability, int i, int pres) {
       }
     }
     if (j != 1) {
+
+      if (duFreq_2 == true) {
+	how_many_new_mutations_in_dup += mutEvents;
+      }
+      
       for(int muts=0; muts < mutEvents; muts++){
 	// Randomly choose one NEW mutation position
 	do {
@@ -2434,8 +2454,8 @@ void mutation_for_phaseVI(float probability, int i, int pres) {
   for (j = 0; j < 5; j++) {
     if (chr->b == 4 && j == 2) { continue; }
     // WHC: just skip block 1
-    //    if (j == 1) { continue; }
-    
+    if (j == 3) { continue; }
+
     mutEvents=0;
     p = rand() / ((float) RAND_MAX + 1);
     if (p < (probability * BLOCKLENGTH)) { mutEvents++;
@@ -3143,9 +3163,12 @@ void statistics(int prev, bool does_print) {
   cout << "Total number of true is " << num_of_true_in_multihit + num_of_true_in_multihit_single << endl;
 
   
-  
-  FSL(prev); // Creating the summary vector fixedLostForAll
-  // INFORMATION RECOVERED FROM SAMPLES
+  if (duFreq_2 == false) {
+    FSL(prev); // Creating the summary vector fixedLostForAll
+    // INFORMATION RECOVERED FROM SAMPLES
+  } else {
+    FSL_since_phaseIV(prev);
+  }
   
   for (o = 0; o < numofsamples; o++) {
     SamplingIndividuals(sampleN[o]);
@@ -3174,8 +3197,42 @@ void statistics_for_phaseVI(int prev, bool does_print) {
   // WHC: and make a new muttable[]
 
   // WHC: as location() and muFrequencyIntWholePopAndSample() should work with block = 2, I think FSL() will work too
-  FSL(prev); // Creating the summary vector fixedLostForAll
+  //  FSL(prev); // Creating the summary vector fixedLostForAll
   // INFORMATION RECOVERED FROM SAMPLES
+
+  /* TESTING PURPOSE */
+  cout << "The MutCount is " << MutCount << '\n';
+  int num_of_true_in_multihit = 0, num_of_false_in_multihit = 0;
+  for (int i = 0; i < BLOCKLENGTH; ++i) {
+    if (multihit[i] == true) {
+      num_of_true_in_multihit++;
+    } else if (multihit[i] == false) {
+      num_of_false_in_multihit++;
+    } else {
+      cout << "WRONG WRONG\n";
+      exit(0);
+    }
+  }
+  cout << "The number of true in multihit is " << num_of_true_in_multihit << " and false is " << num_of_false_in_multihit << endl;
+
+  int num_of_true_in_multihit_single = 0, num_of_false_in_multihit_single = 0;
+  for (int i = 0; i < BLOCKLENGTH; ++i) {
+    if (multihit_single[i] == true) {
+      num_of_true_in_multihit_single++;
+    } else if (multihit_single[i] == false) {
+      num_of_false_in_multihit_single++;
+    } else {
+      cout << "WRONG WRONG\n";
+      exit(0);
+    }
+  }
+  cout << "The number of true in multihit_single is " << num_of_true_in_multihit_single << " and false is " << num_of_false_in_multihit_single << endl;
+  cout << "Total number of true is " << num_of_true_in_multihit + num_of_true_in_multihit_single << endl;
+
+
+
+  
+  FSL_since_phaseIV(prev);
   
   for (o = 0; o < numofsamples; o++) {
     SamplingIndividuals(sampleN[o]);
@@ -3526,6 +3583,230 @@ void FSL(int hh) {
   }
 }
 
+
+/* ======================================================================================================================= */
+
+void FSL_since_phaseIV(int hh) {
+
+
+  int m, otherm=0, mm;
+
+  int make_false_count = 0;
+  
+  for (m = 0; m < MutCount; m++) {
+    muttable[m].frequency = muFrequencyIntWholePopAndSample(hh, muttable[m].position, muttable[m].block, N);
+    // WHC: What if this block is lost, should I use (N * 2) or the #chroms carrying this block????
+    // WHC: the previous question may be vitally important, since this could cause a continuously increase of multihit[]==true
+
+    // WHC: IMPORTANT need to doulbe check here!!!!???
+    
+    // muttable[m].frequency = ((float) muttable[m].frequency) / (N * 2);
+    if (muttable[m].block == 2 && loseFreq == false) {
+      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 2, N));
+    } else if (muttable[m].block == 2 && loseFreq == true) {
+      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq_for_phaseVI(hh, 2, N));
+    } else if (muttable[m].block == 4 && loseFreq == false) {
+      // in phaseIV (when block_4 not fixed) and in phaseV (which should always be 2*N
+      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 4, N));
+    } else if (muttable[m].block == 4 && loseFreq == true) {
+      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 4, N));
+      if (2 * N != DupliFreq(hh, 4, N)) {
+	cout << "This 2 values should equal!\n";
+	exit(0);
+      }
+    } else if (muttable[m].block == 0 || muttable[m].block == 1) {
+      muttable[m].frequency = ((float) muttable[m].frequency) / (N * 2);
+    } else if (muttable[m].block == 3) {
+      // do nothing
+      // WHC: skip block 3
+      continue;
+    } else {
+      cout << "INcorrect\n";
+      exit(0);
+    }
+
+    if (muttable[m].frequency > 1) {
+      cout << "The frequency cannot be over 1!\n";
+      exit(0);
+    }
+    
+  }
+  for (m = 0, mm = 0; m < MutCount; m++) {
+    // SET MULTIHIT TO FALSE FOR MUTATIONS THAT HAVE BEEN LOST
+
+    // WHC: this -9 labels that this has been added to tempMutCount[], so that it won't be added twice
+    if (muttable[m].block == 3 || muttable[m].block == -9) {
+      continue;
+    }
+
+    // WHC: since alreay after phaseIV
+    if (duFreq_2 != true) {
+      cout << "WRONG! You shouldn't use this.\n";
+      exit(0);
+    }
+    
+    // IF MUTATION IS IN THE SINGLE-COPY BLOCK
+    if (muttable[m].block == 1) {
+      // SEGREGATING
+      if (muttable[m].frequency > 0 && muttable[m].frequency < 1) {
+	temporalmuttable[mm].block = muttable[m].block;
+	temporalmuttable[mm].frequency = muttable[m].frequency;
+	temporalmuttable[mm].position = muttable[m].position;
+	mm++;
+
+      } else if (muttable[m].frequency == 1) {
+	EraseFixedMutations(muttable[m].position, muttable[m].block, hh);
+      } else if (muttable[m].frequency == 0) {
+	multihit_single[muttable[m].position] = false;
+      }
+
+    }// IF THE MUTATION IS IN EITHER BLOCK 0 0R 2
+     // WHC: OR BLOCK 4
+    else {
+      // IF THE DUPLICATION HAS NOT YET OCCURRED, TREATS BLOCK 0 AS SINGLE-COPY
+      // WHC: if duFreq = false, then duFreq_2 = false must be true
+
+      if (duFreq_2 == true) {
+	int otherm_1 = 0, otherm_2 = 0;
+
+	/* ================================================================ */
+	/* WHC: this clause is a modificate of if (duFreq == true && duFreq_2 == false) */
+	
+        // IF THE SECONDE DUPLICATION HAS OCCURRED
+	// WHC: within or after phaseIV() (probabily will write one specific for phaseVI()...
+	
+	// CHECKS THE BLOCK IN WHICH IT HAS OCCURRED
+	// AND LOOKS FOR THE POSITION OF THE MUTATION IN MUTTABLE FOR THE OTHER BLOCK
+	if (muttable[m].block == 2) {
+	  otherm_1 = SearchMutation(0, muttable[m].position, MutCount);
+	  otherm_2 = SearchMutation(4, muttable[m].position, MutCount);
+	} else if (muttable[m].block == 0) {
+	  otherm_1 = SearchMutation(2, muttable[m].position, MutCount);
+	  otherm_2 = SearchMutation(4, muttable[m].position, MutCount);
+	} else if (muttable[m].block == 4) {
+	  otherm_1 = SearchMutation(0, muttable[m].position, MutCount);
+	  otherm_2 = SearchMutation(2, muttable[m].position, MutCount);
+	} else if (muttable[m].block == 3) {
+	  // WHC: we just don't care about what's going on in 3
+	  cout << "Should already skipped block == 3\n";
+	  exit(0);
+	} else {
+	  cout << "hi, something wrong in FSL() when considering phaseIV().\n";
+	  exit(0);
+	}
+
+	if (muttable[m].position != muttable[otherm_1].position || muttable[m].position != muttable[otherm_2].position) {
+	  cout << "check out here\n";
+	  exit(0);
+	}
+	
+	// WHC: fixed or lost
+	if (muttable[m].frequency == 1 && muttable[otherm_1].frequency == 1 && muttable[otherm_2].frequency == 1) {
+	  EraseFixedMutations(muttable[m].position, muttable[m].block, hh);
+	  EraseFixedMutations(muttable[otherm_1].position, muttable[otherm_1].block, hh);
+	  EraseFixedMutations(muttable[otherm_2].position, muttable[otherm_2].block, hh);
+
+	  make_false_count += 1;
+
+	  muttable[otherm_1].block = -9;
+	  muttable[otherm_2].block = -9;
+	} else if (muttable[m].frequency == 0 && muttable[otherm_1].frequency == 0 && muttable[otherm_2].frequency == 0) {
+	  multihit[muttable[m].position] = false;
+	  //	  multihit[muttable[otherm_1].position] = false;
+	  //	  multihit[muttable[otherm_2].position] = false;
+
+	  make_false_count += 1;
+	  
+	  muttable[otherm_1].block = -9;
+	  muttable[otherm_2].block = -9;
+	} else if (
+		   (muttable[m].frequency >= 0 && muttable[m].frequency <= 1) ||
+		   (muttable[otherm_1].frequency >= 0 && muttable[otherm_1].frequency <= 1) ||
+		   (muttable[otherm_2].frequency >= 0 && muttable[otherm_2].frequency <= 1)
+		    ) {
+	  // SEGREGATING
+	  temporalmuttable[mm].block = muttable[m].block;
+	  temporalmuttable[mm].frequency = muttable[m].frequency;
+	  temporalmuttable[mm].position = muttable[m].position;
+	  mm++;
+	  
+	  temporalmuttable[mm].block = muttable[otherm_1].block;
+	  temporalmuttable[mm].frequency = muttable[otherm_1].frequency;
+	  temporalmuttable[mm].position = muttable[otherm_1].position;
+	  mm++;
+
+	  temporalmuttable[mm].block = muttable[otherm_2].block;
+	  temporalmuttable[mm].frequency = muttable[otherm_2].frequency;
+	  temporalmuttable[mm].position = muttable[otherm_2].position;
+	  mm++;
+
+	  muttable[otherm_1].block = -9;
+	  muttable[otherm_2].block = -9;
+	} else {
+	  cout << muttable[m].frequency << " " << muttable[otherm_1].frequency << " " << muttable[otherm_2].frequency << '\n';
+	  cout << "FSL_since_phaseIV() wrong here\n";
+	  exit(0);
+	}
+      }
+	// WHC: consider a senario with frequencies: 1, 0.5, 0 for m, otherm_1, otherm_2 !!!
+	else {
+	  cout << "something is wrong in FSL() here.\n";
+	  exit(0);
+	}
+
+	/* WHC: this clause is a modificate of if (duFreq == true && duFreq_2 == false) */
+	/* ================================================================ */
+    }
+  }
+  MutCount = mm;
+  for (m = 0; m < MutCount; m++) {
+    muttable[m].block = temporalmuttable[m].block;
+    muttable[m].frequency = temporalmuttable[m].frequency;
+    muttable[m].position = temporalmuttable[m].position;
+  }
+
+  // WHC: just in case
+  for (m = MutCount; m < MUTTABLESIZE; ++m) {
+    muttable[m].block = -9;
+    muttable[m].frequency = -9;
+    muttable[m].position = -9;
+  }
+
+
+  /* TESTING */
+  cout << "This time there are " << make_false_count << " multihit made to false.\n";
+
+  cout << "The MutCount is " << MutCount << '\n';
+  int num_of_true_in_multihit = 0, num_of_false_in_multihit = 0;
+  for (int i = 0; i < BLOCKLENGTH; ++i) {
+    if (multihit[i] == true) {
+      num_of_true_in_multihit++;
+    } else if (multihit[i] == false) {
+      num_of_false_in_multihit++;
+    } else {
+      cout << "WRONG WRONG\n";
+      exit(0);
+    }
+  }
+  cout << "The number of true in multihit is " << num_of_true_in_multihit << " and false is " << num_of_false_in_multihit << endl;
+
+  int num_of_true_in_multihit_single = 0, num_of_false_in_multihit_single = 0;
+  for (int i = 0; i < BLOCKLENGTH; ++i) {
+    if (multihit_single[i] == true) {
+      num_of_true_in_multihit_single++;
+    } else if (multihit_single[i] == false) {
+      num_of_false_in_multihit_single++;
+    } else {
+      cout << "WRONG WRONG\n";
+      exit(0);
+    }
+  }
+  cout << "The number of true in multihit_single is " << num_of_true_in_multihit_single << " and false is " << num_of_false_in_multihit_single << endl;
+
+  
+}
+
+
 /////////////////////////////////////////////////////
 ////  COPYCHR, LOCATION & ERASE FIXED MUTATIONS  ////
 /////////////////////////////////////////////////////
@@ -3788,6 +4069,7 @@ float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool doe
     s = (int) duplicationFreq/2;
   } else if (block == 4) {	// WHC: newly added
     // WHC: as this is in phaseVI(), don't need this
+    if (s * 2 != DupliFreq(h, 4, n)) { cout << "Hi, there is an error.\n"; exit(0); }
   }
   
   if (s == 0) {
@@ -3985,23 +4267,52 @@ void DivergenceForAll(int blockA, int blockB, int h) {
 int DupliFreq(int h, int block, int n) {
   int i = 0, quantity = 0;
 
-  if (n == N){
-    for (i = 0; i < 2 * n; i++) {
-      //      if (pointer[h][i]->b == (block + 1)) {
-      // WHC: maybe?
-      if (pointer[h][i]->b >= (block + 1)) {
-	quantity++;
+  // WHC: Will this work for dup_2 after losing dup_1???
+
+  if (loseFreq == false) {
+    if (n == N){
+      for (i = 0; i < 2 * n; i++) {
+	//      if (pointer[h][i]->b == (block + 1)) {
+	// WHC: maybe?
+	if (pointer[h][i]->b >= (block + 1)) {
+	  quantity++;
+	}
+      }
+    } else {
+      for (i = 0; i < 2 * n; i++) {
+	//      if (pointer[h][sample[i]]->b == (block + 1)) {
+	// WHC: same reason as previous
+	if (pointer[h][sample[i]]->b >= (block + 1)) {
+	  quantity++;
+	}
       }
     }
-  }else{
-    for (i = 0; i < 2 * n; i++) {
-      //      if (pointer[h][sample[i]]->b == (block + 1)) {
-      // WHC: same reason as previous
-      if (pointer[h][sample[i]]->b >= (block + 1)) {
-	quantity++;
+  } else if (loseFreq == true) {
+    // WHC: this only need to work for counting block = 4, since block = 2 is counted by DupliFreq_for_phaseVI()
+    if (block != 4) { cout << "Does not do the job\n"; exit(0); }
+    
+    if (n == N){
+      for (i = 0; i < 2 * n; i++) {
+	//      if (pointer[h][i]->b == (block + 1)) {
+	// WHC: maybe?
+	if (pointer[h][i]->b >= 4) {
+	  quantity++;
+	}
+      }
+    } else {
+      for (i = 0; i < 2 * n; i++) {
+	//      if (pointer[h][sample[i]]->b == (block + 1)) {
+	// WHC: same reason as previous
+	if (pointer[h][sample[i]]->b >= 4) {
+	  quantity++;
+	}
       }
     }
+  } else {
+    cout << "no way to be here\n";
+    exit(0);
   }
+  
   return quantity;
 }
 
@@ -4012,7 +4323,7 @@ int DupliFreq_for_phaseVI(int h, int block, int n) {
   // WHC: can only work for counting dup_1 frequency in phaseVI
   int i = 0, quantity = 0;
 
-  if (block != 2) { cout << "this boy does not do this job.\n"; exit(0); }
+  if (loseFreq != true || block != 2) { cout << "this boy does not do this job.\n"; exit(0); }
   
   if (n == N){
     for (i = 0; i < 2 * n; i++) {
