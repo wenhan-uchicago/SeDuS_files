@@ -66,7 +66,7 @@ int N = 100; // Population size
 // WHC: PROMETHEUS should be an even number
 int PROMETHEUS = 100; // Number of generations for each genealogy
 
-int SUPERTIME = 1; // Number of simulations per execution
+int SUPERTIME = 30; // Number of simulations per execution
 int BLOCKLENGTH = 10000; // Block length
 int SAMPLE = 50; // Sample size
 #define MUTTABLESIZE 1000000 // Maximum number of mutations (size of muttable)
@@ -93,11 +93,11 @@ int STRUCTURED_2_TIME = 30;
 
 
 // WHC: PHASE_V_TIME * N is the number of generations of Phase V
-int PHASE_V_TIME = 20;
+int PHASE_V_TIME = 30;
 int PHASE_V_LENGTH = (int) PHASE_V_TIME * N;
 
 // WHC: phaseVI time
-int PHASE_VI_TIME = 40;
+int PHASE_VI_TIME = 60;
 int PHASE_VI_LENGTH = (int) PHASE_VI_TIME * N;
 
 int TIMELENGTH = (int) BIGTIME * N; // Total number of generations (including all phases) (not including phaseIV(), phaseV(), phaseVI())
@@ -109,7 +109,7 @@ int STRUCTURED_2 = (int) STRUCTURED_2_TIME * N;
 
 float THETA = 0.001; // Population scaled mutation rate: THETA = 4 N mu
 //float R = 10; // Population scaled crossover rate: R = 4 N rho*BLOCKLENGTH
-float R = 10;
+float R = 100;
 float C = 0.5; // Population scaled gene conversion rate: C = 4N*kappa*lambda
 
 // int numHS = 1; // Number of hotspots
@@ -638,7 +638,7 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       for (j = 0; j < B+2; j++) {
       	for (o = 0; o < numofsamples; o++) {samplefile[j][o][0] << "\n";samplefile[j][o][1] << "\n";}
       }
-      // cout << "Finished Run" << "\n";
+      cout << "Finished Run" << "\n";
       // auxx << endTime <<"\n";
 
     } // END SUPERTIME
