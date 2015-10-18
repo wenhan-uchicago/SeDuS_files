@@ -106,3 +106,18 @@ IMPORTANT: should I change crossoverRatio before phaseIV() or afther phaseIV()??
 AS they use a single multihit[] for all blocks (including the single-copy one), I will just creat a multihit_single[] for single_copy to see if this is causing the increase of single-copy
 
 ALSO, in struct chrom {}, the mutation[] is only BLOCKLENGTH / 2 long... maybe an issue???
+
+Oct 14
+
+I think list[2 * N] in SiteFrequencySpectrumPrint_for_phaseVI() is the point. If N = 100, list[200], but sometimes number coulb be 283 etc, causing problem; possibly due to s = (int) dupfreq / 2 (many mufreq = 1 / 0???)
+
+WHY this didn't happen to their original program?
+
+================
+
+Oct 17
+
+IMPORTANT --
+Another problem they have -- in FSL(), they used muFrequencyIntWholePopAndSample() to count the frequency of specific mutations; however, it is then devided by 2*N, which works great for block_0 or block_1. But when it comes to block_2 or block_4 especially, when it is not fixed (number of chromosomes carrying block_2 or block_4 is less than 2*N), I think it will cause no decrease of multihit[] == true. So, it should actually be devided by DupliFreq() as in SiteFrequencySpectrumPrint().
+
+I will check to make sure

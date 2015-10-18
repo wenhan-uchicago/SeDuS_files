@@ -21,10 +21,8 @@ using namespace std;
 
 
 int main() {
-  float s = 2.5;
-  cout << s << endl;
-  s = (int) s;
-  cout << s << endl;
+  int a[10];
+  cout << sizeof(a) / sizeof(a[0]) << endl;
   
   return 0;
 }

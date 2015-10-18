@@ -58,7 +58,7 @@ using namespace std;
 //// SIMULATION PRINCIPAL VARIABLES ////
 ////////////////////////////////////////
 
-int how_many_new_mutations_in_dup = 0;
+int how_many_new_mutations_in_dup = 0; // WHC: counting how many new mutations happened in block_0, 2 or 4
 
 
 int N = 100; // Population size
@@ -831,7 +831,7 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
     pres = 1;
     bool skip = false;
 
-    how_many_new_mutations_in_dup = 0;
+    //    how_many_new_mutations_in_dup = 0;
     
     // WHC: I think it is good until here
     for (std::vector<fertility_info>::iterator it=fertility_list.begin(); it!=fertility_list.end(); ++it){
@@ -859,7 +859,7 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
     }
     // CALCULATE THE STATISTICS
 
-    cout << "Then, there are " << how_many_new_mutations_in_dup << " introduced.\n\n";
+    //    cout << "Then, there are " << how_many_new_mutations_in_dup << " introduced.\n\n";
     
     statistics(pres, does_print);
 
@@ -908,7 +908,8 @@ void phaseV(float k){
     int pres = 1;
     bool skip = false;
 
-    cout << "The length of this fertility_list is " << fertility_list.size() << endl;
+    //    how_many_new_mutations_in_dup = 0;
+    //    cout << "The length of this fertility_list is " << fertility_list.size() << endl;
     for (std::vector<fertility_info>::iterator it=fertility_list.begin(); it!=fertility_list.end(); ++it){
       int i = (*it).x;
       int t = (*it).y;
@@ -942,6 +943,8 @@ void phaseV(float k){
       does_print=true;
     }
 
+    //    cout << "Then, there are " << how_many_new_mutations_in_dup << " introduced.\n\n";
+    
     /* WHC: testing, as before, to see if muttable[] has redundency
     if (run == false) {
       for (int r = 0; r < MutCount; ++r) {
@@ -1027,6 +1030,8 @@ void phaseVI(int prev, int pres, float k) {
     pres = 1;
     bool skip = false;
 
+    //    how_many_new_mutations_in_dup = 0;
+    
     // WHC: I think it is good until here
     for (std::vector<fertility_info>::iterator it=fertility_list.begin(); it!=fertility_list.end(); ++it){
       // as long as PROMETHEUS is an even number, always end up being prov = 0, pres = 1
@@ -1070,7 +1075,7 @@ void phaseVI(int prev, int pres, float k) {
     }
     */
 
-    
+    //    cout << "Then, there are " << how_many_new_mutations_in_dup << " introduced.\n\n";    
     statistics_for_phaseVI(pres, does_print);
 
     
@@ -2274,6 +2279,8 @@ void mutation(float probability, int i, int pres) {
   chrom * chr;
   chr = pointer[pres][i];
 
+
+  /* WHC: For test purpose; under realistic scenario, multihit[] == true should not be larger than BLOCKLENGTH
   int count_multihit = 0, count_multihit_single = 0;
   for (int t = 0; t < BLOCKLENGTH; ++t) {
     if (multihit[t] == true) {
@@ -2287,6 +2294,7 @@ void mutation(float probability, int i, int pres) {
     cout << "The multihit or multihit_single is larger than BLOCKLENGTH.\nWill have an infinate loop!\n";
     exit(0);
   }
+  */
   
   for (j = 0; j < chr->b; j++) {
 
@@ -2306,9 +2314,11 @@ void mutation(float probability, int i, int pres) {
     }
     if (j != 1) {
 
+      /*
       if (duFreq_2 == true) {
 	how_many_new_mutations_in_dup += mutEvents;
       }
+      */
       
       for(int muts=0; muts < mutEvents; muts++){
 	// Randomly choose one NEW mutation position
@@ -2451,6 +2461,8 @@ void mutation_for_phaseVI(float probability, int i, int pres) {
   chr = pointer[pres][i];
 
   // WHC: just slightly adjust this void mutation(), by skiping j == 2 if chr->b == 4
+  if (loseFreq == false) { cout << "This mutation_for_phaseVI() is only used for phaseVI().\n"; exit(0); }
+  
   for (j = 0; j < 5; j++) {
     if (chr->b == 4 && j == 2) { continue; }
     // WHC: just skip block 1
@@ -2466,8 +2478,11 @@ void mutation_for_phaseVI(float probability, int i, int pres) {
 	}
       }
     }
-    
+
     if (j != 1) {
+      
+      //      how_many_new_mutations_in_dup += mutEvents;
+      
     for(int muts=0; muts < mutEvents; muts++){
       // Randomly choose one NEW mutation position
       do {
@@ -3134,6 +3149,7 @@ void statistics(int prev, bool does_print) {
   // WHC: and make a new muttable[]
 
   /* TESTING PURPOSE */
+  /*
   cout << "The MutCount is " << MutCount << '\n';
   int num_of_true_in_multihit = 0, num_of_false_in_multihit = 0;
   for (int i = 0; i < BLOCKLENGTH; ++i) {
@@ -3161,7 +3177,7 @@ void statistics(int prev, bool does_print) {
   }
   cout << "The number of true in multihit_single is " << num_of_true_in_multihit_single << " and false is " << num_of_false_in_multihit_single << endl;
   cout << "Total number of true is " << num_of_true_in_multihit + num_of_true_in_multihit_single << endl;
-
+  */
   
   if (duFreq_2 == false) {
     FSL(prev); // Creating the summary vector fixedLostForAll
@@ -3201,6 +3217,7 @@ void statistics_for_phaseVI(int prev, bool does_print) {
   // INFORMATION RECOVERED FROM SAMPLES
 
   /* TESTING PURPOSE */
+  /*
   cout << "The MutCount is " << MutCount << '\n';
   int num_of_true_in_multihit = 0, num_of_false_in_multihit = 0;
   for (int i = 0; i < BLOCKLENGTH; ++i) {
@@ -3229,7 +3246,7 @@ void statistics_for_phaseVI(int prev, bool does_print) {
   cout << "The number of true in multihit_single is " << num_of_true_in_multihit_single << " and false is " << num_of_false_in_multihit_single << endl;
   cout << "Total number of true is " << num_of_true_in_multihit + num_of_true_in_multihit_single << endl;
 
-
+  */
 
   
   FSL_since_phaseIV(prev);
@@ -3774,6 +3791,7 @@ void FSL_since_phaseIV(int hh) {
 
 
   /* TESTING */
+  /*
   cout << "This time there are " << make_false_count << " multihit made to false.\n";
 
   cout << "The MutCount is " << MutCount << '\n';
@@ -3802,7 +3820,7 @@ void FSL_since_phaseIV(int hh) {
     }
   }
   cout << "The number of true in multihit_single is " << num_of_true_in_multihit_single << " and false is " << num_of_false_in_multihit_single << endl;
-
+  */
   
 }
 
