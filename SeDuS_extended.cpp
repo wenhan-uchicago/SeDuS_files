@@ -381,6 +381,9 @@ int minim (int, int);
 bool sortx (fertility_info,fertility_info);
 bool sorty (fertility_info,fertility_info);
 
+float number_of_nucleotide_diff(int, int, int, int, int);
+float pairwise_divergence_between(int, int, int, int);
+
 //////////////
 //// MAIN ////
 //////////////
@@ -507,7 +510,7 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
   rho = R / (4 * N * BLOCKLENGTH);
   kappa = C / (4 * N * meanTractLength);
 
-  kappa = 0;
+  //  kappa = 0;
   
   TIMELENGTH = (int) BIGTIME * N; 
   BURNIN = (int) BURNINTIME * N; 
@@ -3234,7 +3237,8 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
 void statistics(int prev, bool does_print) {
   int j, o;
   float * resultsSample;
-
+  //  float results_pairwise_divergence_between;
+  
   // WHC: FSL() will delete fixed/lost mutations
   // WHC: and make a new muttable[]
 
@@ -3286,7 +3290,50 @@ void statistics(int prev, bool does_print) {
       samplefile[j][o][1] << resultsSample[0] << " "; // we save it as (pi,S)
     }
 
+    /* =============================================================== */
+    // It works!!! Their values are consistently higher than mine, as they used integer divisons...
+    /*    
+    // WHC: just to test the differences between these 2 methods of calculating pairwise divergence
+    resultsSample = SiteFrequencySpectrumPrint(prev, 0, sampleN[o], does_print);
+    cout << "from their calculation: " << resultsSample[1] << '\n';
+
+    // WHC: my calculations
+    
+    float temp_results = 0.0;
+    for (int c_1 = 0; c_1 < 2 * sampleN[o]; ++c_1) {
+      for (int c_2 = 0; c_2 < 2 * sampleN[o]; ++c_2) {
+	if (c_1 == c_2) {
+	  if (number_of_nucleotide_diff(0, 0, sample[c_1], sample[c_2], prev) != 0) { // another test
+	    cout << "hi, something wrong with the number_of_nucleotide_diff() function!\n";
+	    exit(0);
+	  }
+	  continue;
+	}
+	temp_results += number_of_nucleotide_diff(0, 0, sample[c_1], sample[c_2], prev);
+      }
+    }
+    cout << "from my calculation: " << temp_results / (2 * sampleN[o] * 2 * sampleN[o]) << '\n';
+    */
+    /* ================================================================ */
+    
     // WHC: for calculating the pairwise-divergence between blockA and blockB
+    // WHC: will just try to calculate blockA = 0, blockB = 3 for now
+    if (duFreq == false) {
+      // do nothing
+    } else if (duFreq == true && duFreq_2 == false) {
+      cout << "between original and dup_1: " << pairwise_divergence_between(prev, sampleN[o], 0, 3) << '\n';
+    } else if (duFreq_2 == true && loseFreq == false) {
+      cout << "between original and dup_1: " << pairwise_divergence_between(prev, sampleN[o], 0, 3) << '\n';
+      cout << "between original and dup_2: " << pairwise_divergence_between(prev, sampleN[o], 0, 5) << '\n';
+      cout << "between dup_1 and dup_2: " << pairwise_divergence_between(prev, sampleN[o], 3, 5) << '\n';
+    } else if (loseFreq == true) {
+      cout << "should not be here.\n";
+      exit(0);
+    } else {
+      cout << "should not be here.\n";
+      exit(0);
+    }
+
   }
   // CALCULATES THE NUMBER OF PRIVATE & SHARED MUTATIONES BETWEEN BLOCKS 0 & 2
   DivergenceForAll(0, 3, prev);
@@ -3352,6 +3399,15 @@ void statistics_for_phaseVI(int prev, bool does_print) {
       samplefile[j][o][0] << resultsSample[1] << " "; // the results array keeps (S,pi) but for the sake of tradition
       samplefile[j][o][1] << resultsSample[0] << " "; // we save it as (pi,S)
     }
+
+
+    
+    // WHC: for calculating the pairwise-divergence between blockA and blockB
+    // WHC: will just try to calculate blockA = 0, blockB = 3 for now
+    cout << "between original and dup_1: " << pairwise_divergence_between(prev, sampleN[o], 0, 3) << '\n';
+    cout << "between original and dup_2: " << pairwise_divergence_between(prev, sampleN[o], 0, 5) << '\n';
+    cout << "between dup_1 and dup_2: " << pairwise_divergence_between(prev, sampleN[o], 5, 3) << '\n';
+
   }
   // CALCULATES THE NUMBER OF PRIVATE & SHARED MUTATIONES BETWEEN BLOCKS 0 & 2
   DivergenceForAll(0, 3, prev);
@@ -4791,13 +4847,20 @@ int pick_a_pair(int mode) {
 
 // WHC: this number_of_nucleotide_diff() is for counting how many nucleotides are different between blockA in chrom i, and blockB in chrom j; for calculating pairwise-divergence between any two blocks
 
-int number_of_nucleotide_diff(int blockA, int blockB, int chrom_1, int chrom_2, int h) {
+float number_of_nucleotide_diff(int blockA, int blockB, int chrom_1, int chrom_2, int h) {
   // only cares about a pair of blockA and blockB; iteration will be done in statistics() and statistics_for_phaseVI()
   // chrom_1 is the chrom that blockA belongs to; chrom_2 is the chrom that blockB belongs to
   
   int j;
   int mutBlockA = 0, mutBlockB = 0, mutSharedAB = 0, mutSharedABComp = 0;
 
+  // WHC: roughly test if chrom_1 contains blockA and chrom_2 contains blockB
+  if ( ! (pointer[h][chrom_1]->b >= blockA && pointer[h][chrom_2]->b >= blockB)) {
+    cout << "probably something wrong here.\n";
+    cout << pointer[h][chrom_1]->b << " " << pointer[h][chrom_2]->b << '\n';
+    exit(0);
+  }
+  
   for (int k = 0; k < pointer[h][chrom_1]->mpb[blockA]; ++k) {
     // iterate through blockA in chrom_1
     j = location(pointer[h][chrom_1]->mutation[blockA][k], h, chrom_2, blockB);
@@ -4822,5 +4885,149 @@ int number_of_nucleotide_diff(int blockA, int blockB, int chrom_1, int chrom_2, 
     cout << "ERROR in number_of_nucleotide_diff()\n" << mutSharedAB << " " << mutSharedABComp << '\n';
     exit(0);
   }
+
+  float per_nucleotide_diff = ((float) ( mutBlockA + mutBlockB)) / ((float) BLOCKLENGTH);
+  // WHC: IMPORTANT! which one should I return???? Should I divide by BLOCKLENGTH or not???
+  
+  //  cout << mutBlockA << " " << mutBlockB << '\n';
+  // return per_nucleotide_diff;
+  return (mutBlockA + mutBlockB);
+}
+
+float pairwise_divergence_between(int h, int n, int blockA, int blockB) {
+  // n = sampleN[o]
+    int num_of_chrom_carrying_blockA = 0, num_of_chrom_carrying_blockB = 0;
+    float results_pairwise_divergence_between = 0.0;
+
+    // double check the number of chroms carrying blockA or blockB
+    int num_blockA = 0, num_blockB = 0;
+    if (duFreq == true && duFreq_2 == false) {
+      num_blockA = 2 * n, num_blockB = 0;
+      for (int i = 0; i < 2 * n; ++i) {
+	if (pointer[h][sample[i]]->b == 4) { ++num_blockB; }
+      }
+    }
+    
+    for (int r_1 = 0; r_1 < 2 * n; ++r_1) {
+      if (duFreq == false) {
+	cout << "this cannot be done without duplicated blocks!\n";
+	exit(0);
+	
+      } else if (duFreq == true && duFreq_2 == false) {
+	//	num_of_chrom_carrying_blockA = 0; should not add this here
+	num_of_chrom_carrying_blockB = 0;
+	if (blockA != 0 || blockB != 3) { cout << "this blockA should only be 0 here and blockB only 3.\n"; exit(0); }
+	num_of_chrom_carrying_blockA++; // WHC: this blockA should only be 0
+
+	for (int r_2 = 0; r_2 < 2 * n; ++r_2) {
+	  if (pointer[h][sample[r_2]]->b == 4) { // has blockB = 3
+	    num_of_chrom_carrying_blockB++;
+	    results_pairwise_divergence_between += number_of_nucleotide_diff(blockA, blockB, sample[r_1], sample[r_2], h);
+	    //	    cout << results_pairwise_divergence_between << " ";
+	  }
+	}
+	
+      } else if (duFreq_2 == true && loseFreq == false) {
+	num_of_chrom_carrying_blockA = 0;
+	num_of_chrom_carrying_blockB = 0;
+	if (blockA == 0) {
+	  num_of_chrom_carrying_blockA = 2 * n;
+	} else if (blockA == 3) {
+	  num_of_chrom_carrying_blockA = 2 * n;
+	} else {
+	  // to make sure that no need to skip blockA, as chrom_1 always contains blockA
+	  cout << "blockA should always be the smaller block.\n";
+	  exit(0);
+	}
+	
+	if (blockB == 3) {
+	  num_of_chrom_carrying_blockB = 2 * n;
+	} else if (blockB == 5) {
+	  //	  cout << "initial num_of_chrom_carrying_blockB is " << num_of_chrom_carrying_blockB << '\n';
+	  for (int temp = 0; temp < 2 * n; ++temp) {
+	    if (pointer[h][sample[temp]]->b == 6) { ++num_of_chrom_carrying_blockB; }
+	  }
+	}
+
+	for (int r_2 = 0; r_2 < 2 * n; ++r_2) {
+	  if (pointer[h][sample[r_2]]->b >= blockB + 1) { // has blockB
+
+	    results_pairwise_divergence_between += number_of_nucleotide_diff(blockA, blockB, sample[r_1], sample[r_2], h);
+	    //	    cout << results_pairwise_divergence_between << " ";
+	  }
+	}
+	
+      } else if (loseFreq == true) {
+	num_of_chrom_carrying_blockA = 0;
+	num_of_chrom_carrying_blockB = 0;
+
+	//	cout << "should use statistics_for_phaseVI()!\n";
+	//	exit(0);
+	// WHC: now, block A should only be 0 or 5
+	if (blockA == 0) {
+	  num_of_chrom_carrying_blockA = 2 * n;
+	} else if (blockA == 5) {
+	  num_of_chrom_carrying_blockA = 2 * n;
+	} else if (blockA == 3) {
+	  cout << "this time blockA should only be 0 or 5.\n";
+	  exit(0);
+	} else {
+	  cout << "should be something wrong here.\n";
+	  exit(0);
+	}
+
+	if (blockB == 3) {
+	  for (int temp = 0; temp < 2 * n; ++temp) {
+	    if (pointer[h][sample[temp]]->b == 6) {
+	      ++num_of_chrom_carrying_blockB;
+	    }
+	  }
+	} else if (blockB == 5) {
+	  num_of_chrom_carrying_blockB = 2 * n;
+	} else if (blockB == 0) {
+	  cout << "blockB cannot be 0";
+	  exit(0);
+	} else {
+	  cout << "should be a mistake here.\n";
+	  exit(0);
+	}
+
+	for (int r_2 = 0; r_2 < 2 * n; ++r_2) {
+	  if (blockB == 3 && pointer[h][sample[r_2]]->b == 5) { continue; }
+	  
+	  results_pairwise_divergence_between += number_of_nucleotide_diff(blockA, blockB, sample[r_1], sample[r_2], h);
+	    //	    cout << results_pairwise_divergence_between << " ";
+	}
+	
+      } else {
+	cout << "could not enter here.\n";
+	exit(0);
+      }
+    }
+
+    
+    if (duFreq == true && duFreq_2 == false) {
+      if (num_of_chrom_carrying_blockA != 2 * n) { cout << "WRONGWRONG\n"; exit(0); }
+      if (num_of_chrom_carrying_blockB != num_blockB) { cout << "wrong number of chromB.\n"; exit(0); }
+    }
+    if (num_of_chrom_carrying_blockA != 2 * n) {
+      cout << "The num_of_chrom_carrying_blockA should always be 2 * n instead of " << num_of_chrom_carrying_blockA << '\n';
+      exit(0);
+    }
+    
+    if (num_of_chrom_carrying_blockA > 2 * n || num_of_chrom_carrying_blockB > 2 * n) {
+      cout << num_of_chrom_carrying_blockA << " " << num_of_chrom_carrying_blockB << '\n';
+      cout << "something wrong in counting.\n";
+      exit(0);
+    }
+
+    if (num_of_chrom_carrying_blockA == 0 || num_of_chrom_carrying_blockB == 0) {
+      // WHC: avoid any 0 numbers
+      return 0.0;
+    }
+    
+    results_pairwise_divergence_between = results_pairwise_divergence_between / (num_of_chrom_carrying_blockA * num_of_chrom_carrying_blockB);
+    
+    return results_pairwise_divergence_between;
 
 }
