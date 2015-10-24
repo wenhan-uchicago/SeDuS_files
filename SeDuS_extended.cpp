@@ -66,7 +66,7 @@ int N = 100; // Population size
 // WHC: PROMETHEUS should be an even number
 int PROMETHEUS = 100; // Number of generations for each genealogy
 
-int SUPERTIME = 200; // Number of simulations per execution
+int SUPERTIME = 2; // Number of simulations per execution
 int BLOCKLENGTH = 10000; // Block length
 int SAMPLE = 50; // Sample size
 #define MUTTABLESIZE 1000000 // Maximum number of mutations (size of muttable)
@@ -3438,7 +3438,7 @@ void statistics_for_phaseVI(int prev, bool does_print) {
     
     // WHC: for calculating the pairwise-divergence between blockA and blockB
     // WHC: will just try to calculate blockA = 0, blockB = 3 for now
-    if (loseFreq == true) { cout << "probably should not use this.\n"; exit(0); }
+    if (loseFreq == false) { cout << "probably should not use this.\n"; exit(0); }
     
     cout << "between original and dup_1: " << pairwise_divergence_between(prev, sampleN[o], 0, 3) << '\n';
     interblock_divergence[0] << pairwise_divergence_between(prev, sampleN[o], 0, 3) << " ";
