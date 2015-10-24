@@ -4903,6 +4903,11 @@ float pairwise_divergence_between(int h, int n, int blockA, int blockB) {
     int num_of_chrom_carrying_blockA = 0, num_of_chrom_carrying_blockB = 0;
     float results_pairwise_divergence_between = 0.0;
 
+    if (blockA == blockB) {
+      cout << "well, this was not tested yet.\n";
+      exit(0);
+    }
+    
     // double check the number of chroms carrying blockA or blockB
     int num_blockA = 0, num_blockB = 0;
     if (duFreq == true && duFreq_2 == false) {
