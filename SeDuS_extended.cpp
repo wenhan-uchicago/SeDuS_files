@@ -3285,6 +3285,8 @@ void statistics(int prev, bool does_print) {
       samplefile[j][o][0] << resultsSample[1] << " "; // the results array keeps (S,pi) but for the sake of tradition
       samplefile[j][o][1] << resultsSample[0] << " "; // we save it as (pi,S)
     }
+
+    // WHC: for calculating the pairwise-divergence between blockA and blockB
   }
   // CALCULATES THE NUMBER OF PRIVATE & SHARED MUTATIONES BETWEEN BLOCKS 0 & 2
   DivergenceForAll(0, 3, prev);
@@ -3986,6 +3988,7 @@ int location(int position, int h, int ind, int j) {// Found the position in the 
   //  while (found == false && k < c->mpb[j]) {
   //  WHC: I don't know, should be careful before changing
     // WHC: I see; they double checked j < pionter[h][i]->mpb[blockA] in DivergenceForAll(), so that they know
+    // WHC: thus, k == mpb[j] is a judgement; when k == mpb[j], it means "no found"
     if (position <= c->mutation[j][k] && k < c->mpb[j]) {
       found = true;
     }
@@ -4784,4 +4787,40 @@ int pick_a_pair(int mode) {
     return p;
   }
   
+}
+
+// WHC: this number_of_nucleotide_diff() is for counting how many nucleotides are different between blockA in chrom i, and blockB in chrom j; for calculating pairwise-divergence between any two blocks
+
+int number_of_nucleotide_diff(int blockA, int blockB, int chrom_1, int chrom_2, int h) {
+  // only cares about a pair of blockA and blockB; iteration will be done in statistics() and statistics_for_phaseVI()
+  // chrom_1 is the chrom that blockA belongs to; chrom_2 is the chrom that blockB belongs to
+  
+  int j;
+  int mutBlockA = 0, mutBlockB = 0, mutSharedAB = 0, mutSharedABComp = 0;
+
+  for (int k = 0; k < pointer[h][chrom_1]->mpb[blockA]; ++k) {
+    // iterate through blockA in chrom_1
+    j = location(pointer[h][chrom_1]->mutation[blockA][k], h, chrom_2, blockB);
+    if ((pointer[h][chrom_1]->mutation[blockA][k] == pointer[h][chrom_2]->mutation[blockB][j]) && (j < pointer[h][chrom_2]->mpb[blockB])) {
+      mutSharedAB++;
+    } else {
+      mutBlockA++;
+    }
+  }
+
+  for (int k = 0; k < pointer[h][chrom_2]->mpb[blockB]; ++k) {
+    // iterate through blockB in chrom_2
+    j = location(pointer[h][chrom_2]->mutation[blockB][k], h, chrom_1, blockA);
+    if ((pointer[h][chrom_2]->mutation[blockB][k] == pointer[h][chrom_1]->mutation[blockA][j]) && (j < pointer[h][chrom_1]->mpb[blockA])) {
+	mutSharedABComp++;
+      } else {
+	mutBlockB++;
+      }
+  }
+
+  if (mutSharedAB != mutSharedABComp) {
+    cout << "ERROR in number_of_nucleotide_diff()\n" << mutSharedAB << " " << mutSharedABComp << '\n';
+    exit(0);
+  }
+
 }
