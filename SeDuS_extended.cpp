@@ -283,6 +283,9 @@ ofstream samplefile[B + 2][numofsamples][2]; // For each block and the collapsed
 ofstream mutationsNewFile[B+1]; // new mutation file, with ms-like format
 ofstream SFS[B+2]; // site frequency spectra for each block + collapsed only for last era
 
+// WHC: ofstream for inter-block pairwise divergence
+ofstream interblock_divergence[3]; // 0 -> between original and dup_1, 1 -> between original and dup_2, 2 -> between dup_1 and dup_2
+
 ///////////////////
 //// FUNCTIONS ////
 ///////////////////
@@ -1175,6 +1178,12 @@ void open_files() { // Opens write-on files
     ss.str("");
   }
 
+  // WHC: create files for inter-block pairwise divergence
+
+  interblock_divergence[0].open("interblock_divergence_between_[0][3].dat"); // WHC: between original and dup_1
+  interblock_divergence[1].open("interblock_divergence_between_[0][5].dat"); // WHC: between original and dup_2
+  interblock_divergence[2].open("interblock_divergence_between_[3][5].dat"); // WHC: between dup_1 and dup_2
+
   for (o = 0; o < numofsamples; o++) {
     for (j = 0; j < B; j++) {
       ss << "samplepi" << j << "[" << sampleN[o] << "]_" << letter << ".dat" << endl;
@@ -1202,6 +1211,11 @@ void close_files() { // Closes write-on files
       samplefile[j][o]->close();
       samplefile[j][o][1].close();
     }
+  }
+
+  // WHC: close files for inter-block divergence
+  for (int k = 0; k < 3; ++k) {
+    interblock_divergence[k].close();
   }
 }
 
@@ -3326,10 +3340,26 @@ void statistics(int prev, bool does_print) {
       // do nothing
     } else if (duFreq == true && duFreq_2 == false) {
       cout << "between original and dup_1: " << pairwise_divergence_between(prev, sampleN[o], 0, 3) << '\n';
+      
+      // between original and dup_1
+      interblock_divergence[0] << pairwise_divergence_between(prev, sampleN[o], 0, 3) << " ";
+      // between original and dup_2
+      interblock_divergence[1] << 0 << " ";
+      // between dup_1 and dup_2
+      interblock_divergence[2] << 0 << " ";
+      
     } else if (duFreq_2 == true && loseFreq == false) {
       cout << "between original and dup_1: " << pairwise_divergence_between(prev, sampleN[o], 0, 3) << '\n';
       cout << "between original and dup_2: " << pairwise_divergence_between(prev, sampleN[o], 0, 5) << '\n';
       cout << "between dup_1 and dup_2: " << pairwise_divergence_between(prev, sampleN[o], 3, 5) << '\n';
+
+      // between original and dup_1
+      interblock_divergence[0] << pairwise_divergence_between(prev, sampleN[o], 0, 3) << " ";
+      // between original and dup_2
+      interblock_divergence[1] << pairwise_divergence_between(prev, sampleN[o], 0, 5) << " ";
+      // between dup_1 and dup_2
+      interblock_divergence[2] << pairwise_divergence_between(prev, sampleN[o], 3, 5) << " ";
+      
     } else if (loseFreq == true) {
       cout << "should not be here.\n";
       exit(0);
@@ -3408,10 +3438,16 @@ void statistics_for_phaseVI(int prev, bool does_print) {
     
     // WHC: for calculating the pairwise-divergence between blockA and blockB
     // WHC: will just try to calculate blockA = 0, blockB = 3 for now
+    if (loseFreq == true) { cout << "probably should not use this.\n"; exit(0); }
+    
     cout << "between original and dup_1: " << pairwise_divergence_between(prev, sampleN[o], 0, 3) << '\n';
+    interblock_divergence[0] << pairwise_divergence_between(prev, sampleN[o], 0, 3) << " ";
+    
     cout << "between original and dup_2: " << pairwise_divergence_between(prev, sampleN[o], 0, 5) << '\n';
+    interblock_divergence[1] << pairwise_divergence_between(prev, sampleN[o], 0, 5) << " ";
+    
     cout << "between dup_1 and dup_2: " << pairwise_divergence_between(prev, sampleN[o], 5, 3) << '\n';
-
+    interblock_divergence[2] << pairwise_divergence_between(prev, sampleN[o], 5, 3) << " ";
   }
   // CALCULATES THE NUMBER OF PRIVATE & SHARED MUTATIONES BETWEEN BLOCKS 0 & 2
   DivergenceForAll(0, 3, prev);
