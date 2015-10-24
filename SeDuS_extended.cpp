@@ -66,20 +66,23 @@ int N = 100; // Population size
 // WHC: PROMETHEUS should be an even number
 int PROMETHEUS = 100; // Number of generations for each genealogy
 
-int SUPERTIME = 30; // Number of simulations per execution
+int SUPERTIME = 200; // Number of simulations per execution
 int BLOCKLENGTH = 10000; // Block length
 int SAMPLE = 50; // Sample size
 #define MUTTABLESIZE 1000000 // Maximum number of mutations (size of muttable)
 
 // #define B 3 // Maximum number of blocks per chromosome
-#define B 5 // WHC: Maximum number of blocks per chromosome
+// #define B 5 // WHC: Maximum number of blocks per chromosome
+#define B 6 // WHC: Maximum number of blocks per chromosome
 
 // WHC: define index for each block, instead of using 0, 1, 2 for original, single-copy and duplicated
-int ori_index = 0, single_1 = 1, dup_1 = 2, single_copy_2 = 3, dup_2 = 4;
+// int ori_index = 0, single_1 = 1, dup_1 = 2, single_copy_2 = 3, dup_2 = 4;
+int ori_index = 0, single_1 = 1, spacer = 2, dup_1 = 3, single_copy_2 = 4, dup_2 = 5;
 
 #define numOfBins 5 // Number of segments in which we divide each block (exclusively used for analysis)
 // #define maxNumOfHS 10  // Maximum number of crossover hotspots
-#define maxNumOfHS 3  // Maximum number of crossover hotspots
+// #define maxNumOfHS 3  // Maximum number of crossover hotspots
+#define maxNumOfHS 5  // Maximum number of crossover hotspots
 #define numofsamples 1 // Number of different samples taken per run
 
 // int BIGTIME = 70;  // BIGTIME * N is the total number of generations simulated per run
@@ -113,15 +116,21 @@ float R = 100;
 float C = 0.5; // Population scaled gene conversion rate: C = 4N*kappa*lambda
 
 // int numHS = 1; // Number of hotspots
-int numHS = 3; // WHC: Number of hotspots, single_2 is a scaled hopspot representing a 2MB region
+// int numHS = 3; // WHC: Number of hotspots, single_2 is a scaled hopspot representing a 2MB region
+int numHS = 5; // WHC: added spacer_1, spacer_2; spacer_1 = block 2, spacer_2 = block 4; to eliminate the effects of balancing selection on single_copy
 
 // WHC: hard cord to initiate these values
-int crossoverBegin[maxNumOfHS] = {0, 3 * BLOCKLENGTH, 4 * BLOCKLENGTH}; // Start point of crossover regions
-int crossoverEnd[maxNumOfHS] = {3 * BLOCKLENGTH, 4 * BLOCKLENGTH, 5 * BLOCKLENGTH}; // End point of crossover regions
+//int crossoverBegin[maxNumOfHS] = {0, 3 * BLOCKLENGTH, 4 * BLOCKLENGTH}; // Start point of crossover regions
+//int crossoverEnd[maxNumOfHS] = {3 * BLOCKLENGTH, 4 * BLOCKLENGTH, 5 * BLOCKLENGTH}; // End point of crossover regions
+
+int crossoverBegin[maxNumOfHS] = {0, 2 * BLOCKLENGTH, 3 * BLOCKLENGTH, 4 * BLOCKLENGTH, 5 * BLOCKLENGTH}; // Start point of crossover regions
+int crossoverEnd[maxNumOfHS] = {2 * BLOCKLENGTH, 3 * BLOCKLENGTH, 4 * BLOCKLENGTH, 5 * BLOCKLENGTH, 6 * BLOCKLENGTH}; // End point of crossover regions
+
 // WHC: artificially selected values, to represent 2MB region as crossover hotspot
 
 // WHC: REMEMBER!!! need to change crossoverRatio[] in int main(), before phaseIV()
-float crossoverRatio[maxNumOfHS] = {0.15, 0.8, 0.05}; // Relative weights of crossover regions
+// WHC: not functional any more
+float crossoverRatio[maxNumOfHS] = {0.08, 0.04, 0.04, 0.80, 0.04}; // Relative weights of crossover regions
 
 string letter = ""; // Simulation ID
 string str;
@@ -507,6 +516,8 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
   //// SET DEFAULT PARAMETERS
   // WHC: not default notSC == 1
   if(notSC == 0){		// WHC: mode is SCC, crossover happens only in single-copy region
+    cout << "notSC should be 1\n";
+    exit(0);
     crossoverBegin[0] = BLOCKLENGTH;
     crossoverEnd[0] = 2*BLOCKLENGTH;
     crossoverRatio[0] = 1;
@@ -591,12 +602,22 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       crossoverRatio[0] = 1;
       crossoverRatio[1] = 0;
       crossoverRatio[2] = 0;
+      crossoverRatio[3] = 0;
+      crossoverRatio[4] = 0;
       
       /*  PHASE I: BURN-IN  */
       cout << "PHASE I" << "\n";
       prev_pres ret = phaseI();
       /* END PHASE I */
 
+
+      crossoverRatio[0] = 0.50;
+      crossoverRatio[1] = 0.25;
+      crossoverRatio[2] = 0.25;
+      crossoverRatio[3] = 0;
+      crossoverRatio[4] = 0;
+
+      
       /*  PHASE II: STRUCTURED TRAJECTORY  */
       cout << "PHASE II" << "\n";
       //endTime=
@@ -615,10 +636,12 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       //      crossoverRatio[maxNumOfHS] = {0.15, 0.8, 0.05}; // Relative weights of crossover regions
 
       // need to change this here
-      crossoverRatio[0] = 0.50;
-      crossoverRatio[1] = 0.25;
-      crossoverRatio[2] = 0.25;
       
+      crossoverRatio[0] = 0.08;
+      crossoverRatio[1] = 0.04;
+      crossoverRatio[2] = 0.04;
+      crossoverRatio[3] = 0.80;
+      crossoverRatio[4] = 0.04;
       
       /* PHASE IV: STRUCTURED_2 TRAJECTORY */
       // WHC: for generating dup_2
@@ -1655,9 +1678,10 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
       */
       if ((pointer[prev][father]->mpb[0] == 0) && (pointer[prev][father]->mpb[1] == 0) &&
 	  (pointer[prev][father]->mpb[2] == 0) && (pointer[prev][father]->mpb[3] == 0) &&
-	  (pointer[prev][father]->mpb[4] == 0) && (pointer[prev][partner]->mpb[0] == 0) &&
-	  (pointer[prev][partner]->mpb[1] == 0) && (pointer[prev][partner]->mpb[2] == 0) &&
-	  (pointer[prev][partner]->mpb[3] == 0) && (pointer[prev][partner]->mpb[4] == 0)) {
+	  (pointer[prev][father]->mpb[4] == 0) && (pointer[prev][father]->mpb[5] == 0) &&
+	  (pointer[prev][partner]->mpb[0] == 0) && (pointer[prev][partner]->mpb[1] == 0) &&
+	  (pointer[prev][partner]->mpb[2] == 0) && (pointer[prev][partner]->mpb[3] == 0) &&
+	  (pointer[prev][partner]->mpb[4] == 0) && (pointer[prev][partner]->mpb[5] == 0)) {
       for (j = 0; j < chr->b; j++) {
 	chr->mpb[j] = 0;
 	}
@@ -1716,11 +1740,16 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
 	}
 
 	// WHC: IMPORTANT!!! Set mpb[4] == 0 if chr->b == 3
-	if (chr->b == 3) {
+	//	if (chr->b == 3) {
+	if (chr->b == 4) {
+	  chr->mpb[5] = 0;
 	  chr->mpb[4] = 0;
+	  //	} else if (chr->b == 2) {
 	} else if (chr->b == 2) {
 	  chr->mpb[2] = 0;
+	  chr->mpb[3] = 0;
 	  chr->mpb[4] = 0;
+	  chr->mpb[5] = 0;
 	}
       }
     } else if (((minblock * BLOCKLENGTH) < end) && ((minblock * BLOCKLENGTH) <= beg)) {
@@ -1772,7 +1801,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 
     minblock = minim(pointer[prev][father]->b, pointer[prev][partner]->b);
 
-    if (minblock == 5) {	// WHC: both have 5 blocks, normal crossover
+    if (minblock == 6) {	// WHC: both have 5 blocks, normal crossover
       // here, either from partner or father does not matter
       childblocks = pointer[prev][partner]->b;
       chr->b = childblocks;
@@ -1809,11 +1838,14 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 		(pointer[prev][father]->mpb[2] == 0) && (pointer[prev][partner]->mpb[0] == 0) &&
 		(pointer[prev][partner]->mpb[1] == 0) && (pointer[prev][partner]->mpb[2] == 0)) {
 	*/
+
 	if ((pointer[prev][father]->mpb[0] == 0) && (pointer[prev][father]->mpb[1] == 0) &&
 	    (pointer[prev][father]->mpb[2] == 0) && (pointer[prev][father]->mpb[3] == 0) &&
-	    (pointer[prev][father]->mpb[4] == 0) && (pointer[prev][partner]->mpb[0] == 0) &&
-	    (pointer[prev][partner]->mpb[1] == 0) && (pointer[prev][partner]->mpb[2] == 0) &&
-	    (pointer[prev][partner]->mpb[3] == 0) && (pointer[prev][partner]->mpb[4] == 0)) {
+	    (pointer[prev][father]->mpb[4] == 0) && (pointer[prev][father]->mpb[5] == 0) &&
+	    (pointer[prev][partner]->mpb[0] == 0) && (pointer[prev][partner]->mpb[1] == 0) &&
+	    (pointer[prev][partner]->mpb[2] == 0) && (pointer[prev][partner]->mpb[3] == 0) &&
+	    (pointer[prev][partner]->mpb[4] == 0) && (pointer[prev][partner]->mpb[5] == 0)) {
+
 	  for (j = 0; j < chr->b; j++) {
 	    chr->mpb[j] = 0;
 	  }
@@ -1861,6 +1893,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	  // WHC: as from junction point on, all mutation info comes from father...
 	  // WHC: (also, previous step only copy mutation info with the junctionBlock!!!
 	  for (j = junctionBlock + 1; j < chr->b; j++) {
+	    // WHC: as minblock == 6, this should make chr->b = 6, therefore making a for (; j < 6;) loop, copying everything
 	    if (j < pointer[prev][father]->b) { //j counts 0,1,2 but .b counts 1,2,3
 	      chr->mpb[j] = pointer[prev][father]->mpb[j];
 	      for (k = 0 ; k < pointer[prev][father]->mpb[j] ; k++) {
@@ -1880,7 +1913,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	//	copychr(prev, father, pres, i);
 	copychr_for_phaseVI(prev, father, pres, i);
       }
-    } else if (minblock == 4) {
+    } else if (minblock == 5) {
       // WHC: this is when one chrom has 4 blocks while another has 5 blocks; tricky one
 
       // WHC: let's decide HS0(block 0, 1, 2), HS1(block 3) and HS2(block 4), which one will have
@@ -1901,7 +1934,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	HS--;
       }
 
-      if (defHS == 0) {		// WHC: means crossover will happen on block 0 - 2, which needs to escape block 2, as it is absent
+      //      if (defHS == 0) {		// WHC: means crossover will happen on block 0 - 2, which needs to escape block 2, as it is absent
 	// WHC: still, partner decides # of child's block
 	// WHC: depends on father here! on partner in else if clause
 
@@ -1909,20 +1942,26 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
         WHC: as stated before, when defHS == 0, information before junction point comes from partner
         chr->b = #blocks for father
 	**************************************************************************************************************************/
+
+      if (defHS == 0 || defHS == 1) {		// WHC: means crossover happens on block 0 or 1; or block 2
 	childblocks = pointer[prev][father]->b;
 	chr->b = childblocks;
 
 	// WHC: crossover could only happen on block 0 or 1
-	end = 2 * BLOCKLENGTH;
-	beg = crossoverBegin[defHS]; // WHC: this is to say, beg = 0
-	if (beg != 0) { cout << "this could not be!"; exit(0); }
+	//	end = 3 * BLOCKLENGTH;
+	end = crossEnd[defHS];
+	beg = crossBegin[defHS]; // WHC: this is to say, beg = 0
+	if (beg > 2 * BLOCKLENGTH) { cout << "this could not be!"; exit(0); }
+	if (end > 3 * BLOCKLENGTH) { cout << "this could not be like this!"; exit(0); }
 
 	// WHC: crossover may happen in either block 0 or block 1; but do NOT know how many blocks father has; so has to test all
+
 	if ((pointer[prev][father]->mpb[0] == 0) && (pointer[prev][father]->mpb[1] == 0) &&
 	    (pointer[prev][father]->mpb[2] == 0) && (pointer[prev][father]->mpb[3] == 0) &&
-	    (pointer[prev][father]->mpb[4] == 0) && (pointer[prev][partner]->mpb[0] == 0) &&
-	    (pointer[prev][partner]->mpb[1] == 0) && (pointer[prev][partner]->mpb[2] == 0) &&
-	    (pointer[prev][partner]->mpb[3] == 0) && (pointer[prev][partner]->mpb[4] == 0)) {
+	    (pointer[prev][father]->mpb[4] == 0) && (pointer[prev][father]->mpb[5] == 0) &&
+	    (pointer[prev][partner]->mpb[0] == 0) && (pointer[prev][partner]->mpb[1] == 0) &&
+	    (pointer[prev][partner]->mpb[2] == 0) && (pointer[prev][partner]->mpb[3] == 0) &&
+	    (pointer[prev][partner]->mpb[4] == 0) && (pointer[prev][partner]->mpb[5] == 0)) {
 	  for (j = 0; j < chr->b; j++) {
 	    chr->mpb[j] = 0;
 	  }
@@ -1974,9 +2013,9 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	  // j should == junctionBlock now
 	  j = junctionBlock + 1;
 
-	  if ((j == 1) && (pointer[prev][father]->b == 5)) { //j counts 0,1,2 but .b counts 1,2,3
+	  if ((j == 1) && (pointer[prev][father]->b == 6)) { //j counts 0,1,2 but .b counts 1,2,3
 	    // WHC: WRONG at first!! should copy father's information in ALL block 1, 2, 3, and 4!!!
-	    for (int temp = 1; temp < 5; ++temp) {
+	    for (int temp = 1; temp < 6; ++temp) {
 	      chr->mpb[temp] = pointer[prev][father]->mpb[temp];
 	      for (k = 0 ; k < pointer[prev][father]->mpb[temp] ; k++) {
 		      chr->mutation[temp][k] = pointer[prev][father]->mutation[temp][k];
@@ -1992,9 +2031,9 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	      chr->mutation[2][k] = pointer[prev][father]->mutation[2][k];
 	    }
 	    */
-	  } else if (j == 1 && pointer[prev][father]->b == 4) {
+	  } else if (j == 1 && pointer[prev][father]->b == 5) {
 
-	    for (int temp = 1; temp < 5; ++temp) {
+	    for (int temp = 1; temp < 6; ++temp) {
 	      chr->mpb[temp] = pointer[prev][father]->mpb[temp];
 	      for (k = 0 ; k < pointer[prev][father]->mpb[temp] ; k++) {
 		//		if (temp == 2) { continue; } , don't need this, as pointer[][]->mpb[2] == 0 already
@@ -2014,7 +2053,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	  } else if (j == 2) {
 	    // WHC: do nothing
 	    // WCH: NO!!! need to copy information in block 2, 3, 4 to child chrom!! father->mpb[2] = 0 need to be copied too!
-	    for (int temp = 2; temp < 5; ++temp) {
+	    for (int temp = 2; temp < 6; ++temp) {
 	      chr->mpb[temp] = pointer[prev][father]->mpb[temp];
 	      for (k = 0 ; k < pointer[prev][father]->mpb[temp] ; k++) {
 		// WHC: don't skip block 2 this time
@@ -2022,13 +2061,22 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	      }
 	    }
 	    
+	  } else if (j == 3) {
+	    for (int temp = 3; temp < 6; ++temp) {
+	      chr->mpb[temp] = pointer[prev][father]->mpb[temp];
+	      for (k = 0 ; k < pointer[prev][father]->mpb[temp] ; k++) {
+		// WHC: don't skip block 2 this time
+		chr->mutation[temp][k] = pointer[prev][father]->mutation[temp][k];
+	      }
+	    }
 	  } else {
 	    cout << "impossible!\n";
 	    exit(0);
 	    //chr->mpb[j] = 0;
 	  }
 	}
-      } else if (defHS == 1 || defHS == 2) { // means crossover will happen on block 3 - 4, needs to pick #blocks for child chrom
+	//      } else if (defHS == 1 || defHS == 2) { // means crossover will happen on block 3 - 4, needs to pick #blocks for child chrom
+      } else if (defHS == 3 || defHS == 4) {
 	//      if (defHS == 1 || defHS == 2) { // means crossover will happen on block 3 - 4, needs to pick #blocks for child chrom
 	// WHC: I incoporated defHS == 0 here, just need to adjust beg and end
 	// WHC: cannot merge them; because if crossover happen before block 2, chr->b depends on father; otherwise on partner
@@ -2052,10 +2100,10 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
       // WHC: probabily will just write a parentpicking() specifically for that phase...
       // WHC: otherwise I think this is workable for now; when a block that doesn't exist happen, just no crossover and copy parental chrom
       // as defHS already decided
-      if (defHS == 0) {
+      if (defHS == 0 || defHS == 1) {
 	cout << "this should not happen.\n";
 	exit(0);
-	end = 2 * BLOCKLENGTH;
+	end = 3 * BLOCKLENGTH;
 	beg = crossBegin[defHS];
 	if (beg != 0) { cout << "this could not be right.\n"; exit(0); }
       } else {
@@ -2076,9 +2124,10 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
       // WHC: as when lose_of_duplication(), I set mpb[0] == 0, this should be fine???
 	if ((pointer[prev][father]->mpb[0] == 0) && (pointer[prev][father]->mpb[1] == 0) &&
 	    (pointer[prev][father]->mpb[2] == 0) && (pointer[prev][father]->mpb[3] == 0) &&
-	    (pointer[prev][father]->mpb[4] == 0) && (pointer[prev][partner]->mpb[0] == 0) &&
-	    (pointer[prev][partner]->mpb[1] == 0) && (pointer[prev][partner]->mpb[2] == 0) &&
-	    (pointer[prev][partner]->mpb[3] == 0) && (pointer[prev][partner]->mpb[4] == 0)) {
+	    (pointer[prev][father]->mpb[4] == 0) && (pointer[prev][father]->mpb[5] == 0) &&
+	    (pointer[prev][partner]->mpb[0] == 0) && (pointer[prev][partner]->mpb[1] == 0) &&
+	    (pointer[prev][partner]->mpb[2] == 0) && (pointer[prev][partner]->mpb[3] == 0) &&
+	    (pointer[prev][partner]->mpb[4] == 0) && (pointer[prev][partner]->mpb[5] == 0)) {
 	  for (j = 0; j < chr->b; j++) {
 	    chr->mpb[j] = 0;
 	  }
@@ -2089,7 +2138,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	  junction = (int) (rand() % (recTract));
 	  junction += beg;
 	  junctionBlock = (int) (junction / BLOCKLENGTH); // block where junction fell
-	  if (defHS > 0 && junctionBlock <= 2) { cout << "this shouldn't happne!\n"; exit(0); } // WHC: just a doulbe-check
+	  if (defHS > 0 && junctionBlock < 4) { cout << "this shouldn't happne!\n"; exit(0); } // WHC: just a doulbe-check
 	  
 	  //	   cout << junctionBlock << " ";
 	  // WHC: is the number of mutations before junction point
@@ -2134,12 +2183,12 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	  // j should == junctionBlock now
 	  j = junctionBlock + 1;
 
-	  if (j == 4) { //j counts 0,1,2 but .b counts 1,2,3
-	    chr->mpb[4] = pointer[prev][partner]->mpb[4];
-	    for (k = 0 ; k < pointer[prev][partner]->mpb[4] ; k++) {
-	      chr->mutation[4][k] = pointer[prev][partner]->mutation[4][k];
+	  if (j == 5) { //j counts 0,1,2 but .b counts 1,2,3
+	    chr->mpb[5] = pointer[prev][partner]->mpb[5];
+	    for (k = 0 ; k < pointer[prev][partner]->mpb[5] ; k++) {
+	      chr->mutation[5][k] = pointer[prev][partner]->mutation[5][k];
 	    }
-	  } else if (j == 5) {
+	  } else if (j == 6) {
 	    // WHC: do nothing
 	  } else {
 	    cout << "impossible!\n";
@@ -2150,6 +2199,9 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 
 	}
 	
+      } else if (defHS == 2) {
+	// WHC: this means no crossover
+	copychr_for_phaseVI(prev, father, pres, i);
       }
       
     } else {
@@ -2182,16 +2234,25 @@ void duplication(int i,int prev, bool from) {
   // WHC: pointer[][] contains pointers to table[]; and table[] contains struct chrom;
   // WHC: so pointer[][][i] represents ith chromes, because array name == pointer
   if (pointer[prev][i][0].b == 2) {
-    pointer[prev][i][0].b++;
+    //    pointer[prev][i][0].b++;
+    pointer[prev][i][0].b = 4;
   }
-  pointer[prev][i][0].mpb[2] = pointer[prev][adam][0].mpb[0];
+  //  pointer[prev][i][0].mpb[2] = pointer[prev][adam][0].mpb[0];
+  pointer[prev][i][0].mpb[3] = pointer[prev][adam][0].mpb[0];
+  // WHC: spacer info
+  pointer[prev][i]->mpb[2] = 0;
+  if (pointer[prev][adam]->mpb[2] != 0) {
+    cout << "The spacer should have 0 mutations before duplication.\n";
+    exit(0);
+  }
+  
   for (k = 0; k < pointer[prev][adam][0].mpb[0]; k++) {
-    pointer[prev][i][0].mutation[2][k] = pointer[prev][adam][0].mutation[0][k];
+    pointer[prev][i][0].mutation[3][k] = pointer[prev][adam][0].mutation[0][k];
   }
   for (k = 0; k < MutCount; k++) {
     if (muttable[k].block == 0) {
       muttable[MutCount + tempMutCount].position = muttable[k].position;
-      muttable[MutCount + tempMutCount].block = 2;
+      muttable[MutCount + tempMutCount].block = 3;
       tempMutCount++;
     }
   }
@@ -2215,15 +2276,16 @@ void duplication_2(int i,int prev, bool from) {
   }
   // WHC: pointer[][] contains pointers to table[]; and table[] contains struct chrom;
   // WHC: so pointer[][][i] represents ith chromes, because array name == pointer
-  if (pointer[prev][i]->b == 3) {
-    pointer[prev][i][0].b = 5;
+  if (pointer[prev][i]->b == 4) {
+    pointer[prev][i][0].b = 6;
   }
 
   // WHC: also, will assume dup_2 comes from ori now... may need to re-consider
   
-  pointer[prev][i][0].mpb[4] = pointer[prev][adam][0].mpb[0];
+  pointer[prev][i][0].mpb[5] = pointer[prev][adam][0].mpb[0];
+  pointer[prev][i]->mpb[4] = 0;
   for (k = 0; k < pointer[prev][adam][0].mpb[0]; k++) {
-    pointer[prev][i][0].mutation[4][k] = pointer[prev][adam][0].mutation[0][k];
+    pointer[prev][i][0].mutation[5][k] = pointer[prev][adam][0].mutation[0][k];
   }
 
   // WHC: need to understand this before changing; changed, need double-check
@@ -2239,7 +2301,7 @@ void duplication_2(int i,int prev, bool from) {
        */
       
       muttable[MutCount + tempMutCount].position = muttable[k].position;
-      muttable[MutCount + tempMutCount].block = 4;
+      muttable[MutCount + tempMutCount].block = 5;
       tempMutCount++;
     }
   }
@@ -2258,11 +2320,12 @@ void lose_of_duplication(int eva, int prev) {
   // WHC: I think it is fine to just ignore this
   // WHC: also, should consider making mpb[2] == 0?
   
-  if (pointer[prev][eva]->b == 5) {
-    pointer[prev][eva]->b = 4;
+  if (pointer[prev][eva]->b == 6) {
+    // WHC: actually chr->b is just a indicator now. still has 6 blocks, and mpb[3] = 0 (dup_1); that's why should use mutation_for_phaseVI()
+    pointer[prev][eva]->b = 5;
 
     // WHC: this step is VERY important, as many problems have been caused by this!!!
-    pointer[prev][eva]->mpb[2] = 0;
+    pointer[prev][eva]->mpb[3] = 0;
     
   } else {
     cout << "something wrong in lose_of_duplication().\n";
@@ -2298,8 +2361,8 @@ void mutation(float probability, int i, int pres) {
   
   for (j = 0; j < chr->b; j++) {
 
-    if (j == 3) {
-      continue; 	// WHC: skip block 3
+    if (j == 2 || j == 4) {
+      continue; 	// WHC: skip block 2 or 4, the two spacers
     }
     
     mutEvents=0;
@@ -2355,29 +2418,29 @@ void mutation(float probability, int i, int pres) {
 	// if (j == 0 && duFreq == true) {
 	if (j == 0 && duFreq == true && duFreq_2 == false) {
 	  // WHC: in phaseII() but not in phaseIV()
-	  muttable[MutCount].block = 2;
+	  muttable[MutCount].block = 3;
 	  muttable[MutCount].position = muttable[MutCount - 1].position;
 	  MutCount++;
 	} else if (j == 0 && duFreq_2 == true) {
 	  // WHC: if is in phaseIV(), then should copy information from 0 to 2 and 4
 	  // WHC: copy to dup_1
-	  muttable[MutCount].block = 2;
+	  muttable[MutCount].block = 3;
 	  muttable[MutCount].position = muttable[MutCount - 1].position;
 	  MutCount++;
 
 	  // WHC: copy to dup_2
-	  muttable[MutCount].block = 4;
+	  muttable[MutCount].block = 5;
 	  muttable[MutCount].position = muttable[MutCount - 2].position;
 	  MutCount++;
 	}
       
 	//      if (j == 2) {
-	if (j == 2 && duFreq_2 == false) {
+	if (j == 3 && duFreq_2 == false) {
 	  // WHC: in phaseII() but not in phaseIV()
 	  muttable[MutCount].block = 0;
 	  muttable[MutCount].position = muttable[MutCount - 1].position;
 	  MutCount++;
-	} else if (j == 2 && duFreq_2 == true) {
+	} else if (j == 3 && duFreq_2 == true) {
 	  // WHC: in phaseIV()
 	  // WHC: or in phaseV()
 	  // WHC: copy to dup_1
@@ -2386,21 +2449,21 @@ void mutation(float probability, int i, int pres) {
 	  MutCount++;
 
 	  // WHC: copy to dup_2
-	  muttable[MutCount].block = 4;
+	  muttable[MutCount].block = 5;
 	  muttable[MutCount].position = muttable[MutCount - 2].position;
 	  MutCount++;
 	}
 
 	// WHC: FORGOT the j == 4!!!! Causing trouble in muttable[]!!!! BUT, I am so happy figuring this out!!!
 
-	if (j == 4) {
+	if (j == 5) {
 	  // WHC: must be in or after phaseIV()
 	  muttable[MutCount].block = 0;
 	  muttable[MutCount].position = muttable[MutCount - 1].position;
 	  MutCount++;
 
 	  // WHC: copy to dup_2
-	  muttable[MutCount].block = 2;
+	  muttable[MutCount].block = 3;
 	  muttable[MutCount].position = muttable[MutCount - 2].position;
 	  MutCount++;
 	}
@@ -2463,10 +2526,10 @@ void mutation_for_phaseVI(float probability, int i, int pres) {
   // WHC: just slightly adjust this void mutation(), by skiping j == 2 if chr->b == 4
   if (loseFreq == false) { cout << "This mutation_for_phaseVI() is only used for phaseVI().\n"; exit(0); }
   
-  for (j = 0; j < 5; j++) {
-    if (chr->b == 4 && j == 2) { continue; }
-    // WHC: just skip block 1
-    if (j == 3) { continue; }
+  for (j = 0; j < 6; j++) {
+    if (chr->b == 5 && j == 3) { continue; }
+    // WHC: just skip block 2 and 4, the two spacers
+    if (j == 2 || j == 4) { continue; }
 
     mutEvents=0;
     p = rand() / ((float) RAND_MAX + 1);
@@ -2517,29 +2580,29 @@ void mutation_for_phaseVI(float probability, int i, int pres) {
       // if (j == 0 && duFreq == true) {
       if (j == 0 && duFreq == true && duFreq_2 == false) {
 	// WHC: in phaseII() but not in phaseIV()
-	muttable[MutCount].block = 2;
+	muttable[MutCount].block = 3;
 	muttable[MutCount].position = muttable[MutCount - 1].position;
 	MutCount++;
       } else if (j == 0 && duFreq_2 == true) {
 	// WHC: if is in phaseIV(), then should copy information from 0 to 2 and 4
 	// WHC: copy to dup_1
-	muttable[MutCount].block = 2;
+	muttable[MutCount].block = 3;
 	muttable[MutCount].position = muttable[MutCount - 1].position;
 	MutCount++;
 
 	// WHC: copy to dup_2
-	muttable[MutCount].block = 4;
+	muttable[MutCount].block = 5;
 	muttable[MutCount].position = muttable[MutCount - 2].position;
 	MutCount++;
       }
       
       //      if (j == 2) {
-      if (j == 2 && duFreq_2 == false) {
+      if (j == 3 && duFreq_2 == false) {
 	// WHC: in phaseII() but not in phaseIV()
 	muttable[MutCount].block = 0;
 	muttable[MutCount].position = muttable[MutCount - 1].position;
 	MutCount++;
-      } else if (j == 2 && duFreq_2 == true) {
+      } else if (j == 3 && duFreq_2 == true) {
 	// WHC: in phaseIV()
 	// WHC: or in phaseV()
 	// WHC: copy to dup_1
@@ -2548,21 +2611,21 @@ void mutation_for_phaseVI(float probability, int i, int pres) {
 	MutCount++;
 
 	// WHC: copy to dup_2
-	muttable[MutCount].block = 4;
+	muttable[MutCount].block = 5;
 	muttable[MutCount].position = muttable[MutCount - 2].position;
 	MutCount++;
       }
 
       // WHC: FORGOT the j == 4!!!! Causing trouble in muttable[]!!!! BUT, I am so happy figuring this out!!!
 
-      if (j == 4) {
+      if (j == 5) {
 	// WHC: must be in or after phaseIV()
 	muttable[MutCount].block = 0;
 	muttable[MutCount].position = muttable[MutCount - 1].position;
 	MutCount++;
 
 	// WHC: copy to dup_2
-	muttable[MutCount].block = 2;
+	muttable[MutCount].block = 3;
 	muttable[MutCount].position = muttable[MutCount - 2].position;
 	MutCount++;
       }
@@ -2626,7 +2689,7 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
   // WHC: as long as #blocks >= 3
   // WHC: REMEMBER, #blocks also determine which 2 pairs of duplications could be selected
   
-  if (chr1->b >= 3) {
+  if (chr1->b >= 4) {
     if((sameDifIGC!=1) && (IGCmatrix[i][t]==true)){ // IGC on different chroms
       IGC = 1;
 
@@ -2645,11 +2708,11 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
       int block_1, block_2;
       float donorRatio;
       
-      if (chr1->b == 3 && chr2->b <= 3) {		// WHC: pick 2 pairs
+      if (chr1->b == 4 && chr2->b <= 4) {		// WHC: pick 2 pairs
 	block_1 = ori_index;
 	block_2 = dup_1;
 	donorRatio = p_donorRatio[0][2];
-      } else if (chr1->b == 5 || chr2->b == 5) {	// WHC: could pick ori, dup_1, dup_2 blocks; means already in phaseIV(), at least 3 blocks for any chrom
+      } else if (chr1->b == 6 || chr2->b == 6) {	// WHC: could pick ori, dup_1, dup_2 blocks; means already in phaseIV(), at least 3 blocks for any chrom
 	// WHC: randomly generate 0, 1, 2
 	// WHC: which correspond to ori&dup_1, ori&dup_2 and dup_1&dup_2 pairs
 
@@ -2688,7 +2751,7 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	receptor = block_1;
       }
       
-      if (chr2->b == 5 && chr1->b == 5) {
+      if (chr2->b == 6 && chr1->b == 6) {
 	p = rand() / ((float) RAND_MAX + 1); // WHC: randomly choose from which chromosome to which
 	if (p < 0.5) {
 	  chrDonor = i;
@@ -2697,7 +2760,7 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	  chrDonor = partner;
 	  chrReceptor = i;
 	}
-      } else if (chr2->b == 5 && chr1->b == 3) {
+      } else if (chr2->b == 6 && chr1->b == 4) {
 	if (block_2 == dup_2) {	// only chr2 can be donor
 	  chrDonor = partner;
 	  chrReceptor = i;
@@ -2711,7 +2774,7 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	    chrReceptor = i;
 	  }
 	}
-      } else if (chr2->b == 3) { // WHC: chr2 only contains ori and dup_1 (phase which loses dup_1 will not be considered here
+      } else if (chr2->b == 4) { // WHC: chr2 only contains ori and dup_1 (phase which loses dup_1 will not be considered here
 	// chr1->b could either be 3 or 5
 	if (block_2 == dup_2) {
 	  chrDonor = i;
@@ -2747,7 +2810,7 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
       // WHC: but IGC could still happen within chrom
       p = rand() / ((float) RAND_MAX + 1);
       // WHC: should distinguish between 2 duplications and 3 duplications
-      if (chr1->b == 3) {
+      if (chr1->b == 4) {
 	int block_1 = ori_index;
 	int block_2 = dup_1;
 	float donorRatio = p_donorRatio[0][2];
@@ -2766,7 +2829,8 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	  chrDonor = i;
 	  chrReceptor = i;
 	}
-      } else if (chr1->b == 5) {
+      } else if (chr1->b == 6) {
+	// WHC: I should also add chr1->b == 5 (lost dup_1!!!)
 	if (p < (3 * probability * BLOCKLENGTH * sameDifIGC)) { // WHC: should this be 3? Because we have 3 blocks...
 	  IGC = 1;
 	  // Determines which block will be the donor and which will be the receptor
@@ -2804,6 +2868,30 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	  chrDonor = i;
 	  chrReceptor = i;
 
+	}
+      } else if (chr1->b == 5) {
+	// WHC: lost dup_1, but can still have IGC between ori and dup_2
+	// WHC: forgot to add at the beginning
+
+	cout << "Should use conversion_for_phaseVI()!\n";
+	exit(0);
+	int block_1 = ori_index;
+	int block_2 = dup_2;
+	float donorRatio = p_donorRatio[0][4];
+
+	if (p < (2 * probability * BLOCKLENGTH * sameDifIGC)) {
+	  IGC = 1;
+	  // Determines which block will be the donor and which will be the receptor
+	  p = rand() / ((float) RAND_MAX + 1);
+	  if (p < donorRatio) {
+	    donor = block_1;
+	    receptor = block_2;
+	  } else {
+	    donor = block_2;
+	    receptor = block_1;
+	  }
+	  chrDonor = i;
+	  chrReceptor = i;
 	}
       }
     }
@@ -2909,7 +2997,7 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
   // WHC: as long as #blocks >= 3
   // WHC: REMEMBER, #blocks also determine which 2 pairs of duplications could be selected
   
-  if (chr1->b >= 4) {
+  if (chr1->b >= 5) {
     if((sameDifIGC!=1) && (IGCmatrix[i][t]==true)){ // IGC on different chroms
       IGC = 1;
 
@@ -2928,12 +3016,14 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
       int block_1, block_2;
       float donorRatio;
       
-      if (chr1->b == 4 || chr2->b == 4) { // WHC: pick 2 pairs
+      if (chr1->b == 5 || chr2->b == 5) { // WHC: pick 2 pairs
+	// WHC: REMINDER!! Probably should be if (chr1->b == 5 && chr2->b == 5) and add another if ( || )
 	// WHC: IGC could only happend between ori and dup_2
 	block_1 = ori_index;
 	block_2 = dup_2;
-	donorRatio = p_donorRatio[0][2];
-      } else if (chr1->b == 5 && chr2->b == 5) {	// WHC: could pick ori, dup_1, dup_2 blocks; means already in phaseIV(), at least 3 blocks for any chrom
+	//	donorRatio = p_donorRatio[0][2]; WHC: mistake!!
+	donorRatio = p_donorRatio[0][4];
+      } else if (chr1->b == 6 && chr2->b == 6) {	// WHC: could pick ori, dup_1, dup_2 blocks; means already in phaseIV(), at least 3 blocks for any chrom
 	// WHC: randomly generate 0, 1, 2
 	// WHC: which correspond to ori&dup_1, ori&dup_2 and dup_1&dup_2 pairs
 
@@ -2991,7 +3081,7 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
       p = rand() / ((float) RAND_MAX + 1);
       // WHC: should distinguish between 2 duplications and 3 duplications
       
-      if (chr1->b == 4) {
+      if (chr1->b == 5) {
 	int block_1 = ori_index;
 	int block_2 = dup_2;
 	float donorRatio = p_donorRatio[0][4];
@@ -3010,7 +3100,7 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
 	  chrDonor = i;
 	  chrReceptor = i;
 	}
-      } else if (chr1->b == 5) {
+      } else if (chr1->b == 6) {
 	if (p < (3 * probability * BLOCKLENGTH * sameDifIGC)) { // WHC: should this be 3? Because we have 3 blocks...
 	  IGC = 1;
 	  // Determines which block will be the donor and which will be the receptor
@@ -3054,8 +3144,8 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
     // WHC: not changed, remains the same; I assume it will work :)
     
     if(IGC == 1) {
-      cout << "IGC should not equal to 1\n";
-      exit(0);
+      //      cout << "IGC should not equal to 1\n";
+      //      exit(0);
       chr1 = pointer[pres][chrDonor];
       chr2 = pointer[pres][chrReceptor];
       // Determines conversion initiation point
@@ -3197,9 +3287,9 @@ void statistics(int prev, bool does_print) {
     }
   }
   // CALCULATES THE NUMBER OF PRIVATE & SHARED MUTATIONES BETWEEN BLOCKS 0 & 2
-  DivergenceForAll(0, 2, prev);
-  DivergenceForAll(0, 4, prev);
-  DivergenceForAll(2, 4, prev);
+  DivergenceForAll(0, 3, prev);
+  DivergenceForAll(0, 5, prev);
+  DivergenceForAll(3, 5, prev);
 }
 
 /* ================================================================ */
@@ -3262,9 +3352,9 @@ void statistics_for_phaseVI(int prev, bool does_print) {
     }
   }
   // CALCULATES THE NUMBER OF PRIVATE & SHARED MUTATIONES BETWEEN BLOCKS 0 & 2
-  DivergenceForAll(0, 2, prev);
-  DivergenceForAll(0, 4, prev);
-  DivergenceForAll(2, 4, prev);
+  DivergenceForAll(0, 3, prev);
+  DivergenceForAll(0, 5, prev);
+  DivergenceForAll(3, 5, prev);
 }
 
 /* ================================================================ */
@@ -3285,22 +3375,22 @@ void FSL(int hh) {
     // WHC: IMPORTANT need to doulbe check here!!!!???
     
     // muttable[m].frequency = ((float) muttable[m].frequency) / (N * 2);
-    if (muttable[m].block == 2 && loseFreq == false) {
-      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 2, N));
-    } else if (muttable[m].block == 2 && loseFreq == true) {
-      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq_for_phaseVI(hh, 2, N));
-    } else if (muttable[m].block == 4 && loseFreq == false) {
+    if (muttable[m].block == 3 && loseFreq == false) {
+      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 3, N));
+    } else if (muttable[m].block == 3 && loseFreq == true) {
+      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq_for_phaseVI(hh, 3, N));
+    } else if (muttable[m].block == 5 && loseFreq == false) {
       // in phaseIV (when block_4 not fixed) and in phaseV (which should always be 2*N
-      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 4, N));
-    } else if (muttable[m].block == 4 && loseFreq == true) {
-      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 4, N));
-      if (2 * N != DupliFreq(hh, 4, N)) {
+      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 5, N));
+    } else if (muttable[m].block == 5 && loseFreq == true) {
+      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 5, N));
+      if (2 * N != DupliFreq(hh, 5, N)) {
 	cout << "This 2 values should equal!\n";
 	exit(0);
       }
     } else if (muttable[m].block == 0 || muttable[m].block == 1) {
       muttable[m].frequency = ((float) muttable[m].frequency) / (N * 2);
-    } else if (muttable[m].block == 3) {
+    } else if (muttable[m].block == 2 || muttable[m].block == 4) {
       // do nothing
       continue;
     } else {
@@ -3313,7 +3403,7 @@ void FSL(int hh) {
     // SET MULTIHIT TO FALSE FOR MUTATIONS THAT HAVE BEEN LOST
 
     // WHC: this -9 labels that this has been added to tempMutCount[], so that it won't be added twice
-    if (muttable[m].block == -9 || muttable[m].block == 3) {
+    if (muttable[m].block == -9 || muttable[m].block == 2 || muttable[m].block == 4) {
       continue;
     }
 
@@ -3334,14 +3424,13 @@ void FSL(int hh) {
 	temporalmuttable[mm].position = muttable[m].position;
 	mm++;
 
-      }
-      // FIXED
-      if (muttable[m].frequency == 1) {
+      } else if (muttable[m].frequency == 1) {      // FIXED
 	EraseFixedMutations(muttable[m].position, muttable[m].block, hh);
       }
 
     }// IF THE MUTATION IS IN EITHER BLOCK 0 0R 2
      // WHC: OR BLOCK 4
+    // WHC: in block 0, 3, 5
     else {
       // IF THE DUPLICATION HAS NOT YET OCCURRED, TREATS BLOCK 0 AS SINGLE-COPY
       // WHC: if duFreq = false, then duFreq_2 = false must be true
@@ -3363,11 +3452,11 @@ void FSL(int hh) {
 	
 	// CHECKS THE BLOCK IN WHICH IT HAS OCCURRED
 	// AND LOOKS FOR THE POSITION OF THE MUTATION IN MUTTABLE FOR THE OTHER BLOCK
-	if (muttable[m].block == 2) {
+	if (muttable[m].block == 3) {
 	  otherm = SearchMutation(0, muttable[m].position, MutCount);
 	}
 	if (muttable[m].block == 0) {
-	  otherm = SearchMutation(2, muttable[m].position, MutCount);
+	  otherm = SearchMutation(3, muttable[m].position, MutCount);
 	}
 	// SEGREGATING
 	if (muttable[m].frequency > 0 && muttable[m].frequency < 1) {
@@ -3416,6 +3505,8 @@ void FSL(int hh) {
 	  }
 	}
       } else if (duFreq_2 == true) {
+	cout << "Should use FSL_since_phaseIV().\n";
+	exit(0);
 	int otherm_1 = 0, otherm_2 = 0;
 
 	/* ================================================================ */
@@ -3618,24 +3709,24 @@ void FSL_since_phaseIV(int hh) {
     // WHC: IMPORTANT need to doulbe check here!!!!???
     
     // muttable[m].frequency = ((float) muttable[m].frequency) / (N * 2);
-    if (muttable[m].block == 2 && loseFreq == false) {
-      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 2, N));
-    } else if (muttable[m].block == 2 && loseFreq == true) {
-      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq_for_phaseVI(hh, 2, N));
-    } else if (muttable[m].block == 4 && loseFreq == false) {
+    if (muttable[m].block == 3 && loseFreq == false) {
+      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 3, N));
+    } else if (muttable[m].block == 3 && loseFreq == true) {
+      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq_for_phaseVI(hh, 3, N));
+    } else if (muttable[m].block == 5 && loseFreq == false) {
       // in phaseIV (when block_4 not fixed) and in phaseV (which should always be 2*N
-      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 4, N));
-    } else if (muttable[m].block == 4 && loseFreq == true) {
-      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 4, N));
-      if (2 * N != DupliFreq(hh, 4, N)) {
+      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 5, N));
+    } else if (muttable[m].block == 5 && loseFreq == true) {
+      muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 5, N));
+      if (2 * N != DupliFreq(hh, 5, N)) {
 	cout << "This 2 values should equal!\n";
 	exit(0);
       }
     } else if (muttable[m].block == 0 || muttable[m].block == 1) {
       muttable[m].frequency = ((float) muttable[m].frequency) / (N * 2);
-    } else if (muttable[m].block == 3) {
+    } else if (muttable[m].block == 2 || muttable[m].block == 4) {
       // do nothing
-      // WHC: skip block 3
+      // WHC: skip block 2 and 4, the two spacers
       continue;
     } else {
       cout << "INcorrect\n";
@@ -3652,7 +3743,7 @@ void FSL_since_phaseIV(int hh) {
     // SET MULTIHIT TO FALSE FOR MUTATIONS THAT HAVE BEEN LOST
 
     // WHC: this -9 labels that this has been added to tempMutCount[], so that it won't be added twice
-    if (muttable[m].block == 3 || muttable[m].block == -9) {
+    if (muttable[m].block == 2 || muttable[m].block == 4 || muttable[m].block == -9) {
       continue;
     }
 
@@ -3679,6 +3770,7 @@ void FSL_since_phaseIV(int hh) {
 
     }// IF THE MUTATION IS IN EITHER BLOCK 0 0R 2
      // WHC: OR BLOCK 4
+    // WHC: block 0, 3, 5
     else {
       // IF THE DUPLICATION HAS NOT YET OCCURRED, TREATS BLOCK 0 AS SINGLE-COPY
       // WHC: if duFreq = false, then duFreq_2 = false must be true
@@ -3694,18 +3786,18 @@ void FSL_since_phaseIV(int hh) {
 	
 	// CHECKS THE BLOCK IN WHICH IT HAS OCCURRED
 	// AND LOOKS FOR THE POSITION OF THE MUTATION IN MUTTABLE FOR THE OTHER BLOCK
-	if (muttable[m].block == 2) {
+	if (muttable[m].block == 3) {
 	  otherm_1 = SearchMutation(0, muttable[m].position, MutCount);
-	  otherm_2 = SearchMutation(4, muttable[m].position, MutCount);
+	  otherm_2 = SearchMutation(5, muttable[m].position, MutCount);
 	} else if (muttable[m].block == 0) {
-	  otherm_1 = SearchMutation(2, muttable[m].position, MutCount);
-	  otherm_2 = SearchMutation(4, muttable[m].position, MutCount);
-	} else if (muttable[m].block == 4) {
+	  otherm_1 = SearchMutation(3, muttable[m].position, MutCount);
+	  otherm_2 = SearchMutation(5, muttable[m].position, MutCount);
+	} else if (muttable[m].block == 5) {
 	  otherm_1 = SearchMutation(0, muttable[m].position, MutCount);
-	  otherm_2 = SearchMutation(2, muttable[m].position, MutCount);
-	} else if (muttable[m].block == 3) {
+	  otherm_2 = SearchMutation(3, muttable[m].position, MutCount);
+	} else if (muttable[m].block == 2 || muttable[m].block == 4) {
 	  // WHC: we just don't care about what's going on in 3
-	  cout << "Should already skipped block == 3\n";
+	  cout << "Should already skipped block == 2 or 4\n";
 	  exit(0);
 	} else {
 	  cout << "hi, something wrong in FSL() when considering phaseIV().\n";
@@ -3843,15 +3935,19 @@ void copychr(int prev, int ind0, int pres, int ind1) { // (origin,end)
   }
 
   // WHC: I think this is necessary, and I don't know if their original code is correct without this???
+  //  if (c1->b == 2) {
   if (c1->b == 2) {
     c1->mpb[2] = 0;
+    c1->mpb[3] = 0;
     c1->mpb[4] = 0;
-  } else if (c1->b == 3) {
-    c1->mpb[4] = 0;
+    c1->mpb[5] = 0;
   } else if (c1->b == 4) {
+    c1->mpb[4] = 0;
+    c1->mpb[5] = 0;
+  } else if (c1->b == 5) {
     cout << "hi, this should not be here! go for copychr_for_phaseVI()!\n";
     exit(0);
-  } else if (c1->b == 5) {
+  } else if (c1->b == 6) {
     // do nothing
   } else {
     cout << "something wrong here.\n";
@@ -3868,7 +3964,7 @@ void copychr_for_phaseVI(int prev, int ind0, int pres, int ind1) { // (origin,en
   c1 = pointer[pres][ind1];
   c1->b = pointer[prev][ind0]->b;
   // WHC: similar as copychr(), this should work
-  for (j = 0; j < 5; j++) {
+  for (j = 0; j < 6; j++) {
     c1->mpb[j] = pointer[prev][ind0]->mpb[j];
     for (k = 0; k < pointer[prev][ind0]->mpb[j]; k++) {
       c1->mutation[j][k] = pointer[prev][ind0]->mutation[j][k];
@@ -3907,6 +4003,7 @@ void EraseFixedMutations(int fixed, int block, int prev) {
   } else {
     multihit_single[fixed] = false;
   }
+  
   for (ii = 0; ii < 2 * N; ii++) {
     if (pointer[prev][ii]->mpb[block] == 0) { continue; } // WHC: vital for this
     pointer[prev][ii]->mpb[block]--;
@@ -3936,13 +4033,13 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
   results[0] = 0;
   results[1] = 0;
 
-  if(block == 2){
+  if(block == 3){
     //duplicationFreq = Freq(prev, 2, n);
-    duplicationFreq = DupliFreq(h, 2, n);
+    duplicationFreq = DupliFreq(h, 3, n);
     // WHC: why divided by 2?? Because DupliFreq() returns the number of chroms, but s is the number of individuals!!
     s = (int) duplicationFreq/2;
-  } else if (block == 4) {	// WHC: newly added
-    duplicationFreq = DupliFreq(h, 4, n);
+  } else if (block == 5) {	// WHC: newly added
+    duplicationFreq = DupliFreq(h, 5, n);
     s = (int) duplicationFreq / 2;
   }
   if (s == 0) { return results; }
@@ -4078,16 +4175,16 @@ float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool doe
   results[0] = 0;
   results[1] = 0;
 
-  if(block == 2){
+  if(block == 3){
     //duplicationFreq = DupliFreq(prev, 2, n);
     // WHC: duplicationFreq is the number of chroms that are carrying dup_1, 2 * N - duplicationFreq = #chroms without block 2 (dup_1)
-    duplicationFreq = DupliFreq_for_phaseVI(h, 2, n);
+    duplicationFreq = DupliFreq_for_phaseVI(h, 3, n);
 
     // WHC: why divided by 2?? Because DupliFreq() returns the number of chroms, but s is the number of individuals!!
     s = (int) duplicationFreq/2;
-  } else if (block == 4) {	// WHC: newly added
+  } else if (block == 5) {	// WHC: newly added
     // WHC: as this is in phaseVI(), don't need this
-    if (s * 2 != DupliFreq(h, 4, n)) { cout << "Hi, there is an error.\n"; exit(0); }
+    if (s * 2 != DupliFreq(h, 5, n)) { cout << "Hi, there is an error.\n"; exit(0); }
   }
   
   if (s == 0) {
@@ -4307,13 +4404,13 @@ int DupliFreq(int h, int block, int n) {
     }
   } else if (loseFreq == true) {
     // WHC: this only need to work for counting block = 4, since block = 2 is counted by DupliFreq_for_phaseVI()
-    if (block != 4) { cout << "Does not do the job\n"; exit(0); }
+    if (block != 5) { cout << "Does not do the job\n"; exit(0); }
     
     if (n == N){
       for (i = 0; i < 2 * n; i++) {
 	//      if (pointer[h][i]->b == (block + 1)) {
 	// WHC: maybe?
-	if (pointer[h][i]->b >= 4) {
+	if (pointer[h][i]->b >= 5) {
 	  quantity++;
 	}
       }
@@ -4321,7 +4418,7 @@ int DupliFreq(int h, int block, int n) {
       for (i = 0; i < 2 * n; i++) {
 	//      if (pointer[h][sample[i]]->b == (block + 1)) {
 	// WHC: same reason as previous
-	if (pointer[h][sample[i]]->b >= 4) {
+	if (pointer[h][sample[i]]->b >= 5) {
 	  quantity++;
 	}
       }
@@ -4341,13 +4438,13 @@ int DupliFreq_for_phaseVI(int h, int block, int n) {
   // WHC: can only work for counting dup_1 frequency in phaseVI
   int i = 0, quantity = 0;
 
-  if (loseFreq != true || block != 2) { cout << "this boy does not do this job.\n"; exit(0); }
+  if (loseFreq != true || block != 3) { cout << "this boy does not do this job.\n"; exit(0); }
   
   if (n == N){
     for (i = 0; i < 2 * n; i++) {
       //      if (pointer[h][i]->b == (block + 1)) {
       // WHC: maybe?
-      if (pointer[h][i]->b == 4) { // WHC: lost dup_1
+      if (pointer[h][i]->b == 5) { // WHC: lost dup_1
 	quantity++;
       }
     }
@@ -4355,7 +4452,7 @@ int DupliFreq_for_phaseVI(int h, int block, int n) {
     for (i = 0; i < 2 * n; i++) {
       //      if (pointer[h][sample[i]]->b == (block + 1)) {
       // WHC: same reason as previous
-      if (pointer[h][sample[i]]->b == 4) { // WHC: lost dup_1
+      if (pointer[h][sample[i]]->b == 5) { // WHC: lost dup_1
 	quantity++;
       }
     }
