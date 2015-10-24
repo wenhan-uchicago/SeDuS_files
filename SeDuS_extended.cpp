@@ -3292,7 +3292,8 @@ void statistics(int prev, bool does_print) {
 
     /* =============================================================== */
     // It works!!! Their values are consistently higher than mine, as they used integer divisons...
-    /*    
+
+    /*
     // WHC: just to test the differences between these 2 methods of calculating pairwise divergence
     resultsSample = SiteFrequencySpectrumPrint(prev, 0, sampleN[o], does_print);
     cout << "from their calculation: " << resultsSample[1] << '\n';
@@ -3312,7 +3313,10 @@ void statistics(int prev, bool does_print) {
 	temp_results += number_of_nucleotide_diff(0, 0, sample[c_1], sample[c_2], prev);
       }
     }
+    // mine results and theirs always have a difference by factor 2n/(2n-1)
     cout << "from my calculation: " << temp_results / (2 * sampleN[o] * 2 * sampleN[o]) << '\n';
+    cout << "from my adjusted calculation: " << temp_results / (2 * sampleN[o] * (2 * sampleN[o] - 1)) << '\n';
+    
     */
     /* ================================================================ */
     
