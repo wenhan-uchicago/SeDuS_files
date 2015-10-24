@@ -667,6 +667,9 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       for (j = 0; j < B+2; j++) {
       	for (o = 0; o < numofsamples; o++) {samplefile[j][o][0] << "\n";samplefile[j][o][1] << "\n";}
       }
+      for (int k = 0; k < 3; ++k) {
+	interblock_divergence[k] << '\n';
+      }
       cout << "Finished Run" << "\n";
       // auxx << endTime <<"\n";
 
@@ -3338,6 +3341,10 @@ void statistics(int prev, bool does_print) {
     // WHC: will just try to calculate blockA = 0, blockB = 3 for now
     if (duFreq == false) {
       // do nothing
+      // NO, should cout << 0!
+      for (int k = 0; k < 3; ++k) {
+	interblock_divergence[k] << '0' << " ";
+      }
     } else if (duFreq == true && duFreq_2 == false) {
       cout << "between original and dup_1: " << pairwise_divergence_between(prev, sampleN[o], 0, 3) << '\n';
       
