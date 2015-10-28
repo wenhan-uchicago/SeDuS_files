@@ -121,3 +121,9 @@ IMPORTANT --
 Another problem they have -- in FSL(), they used muFrequencyIntWholePopAndSample() to count the frequency of specific mutations; however, it is then devided by 2*N, which works great for block_0 or block_1. But when it comes to block_2 or block_4 especially, when it is not fixed (number of chromosomes carrying block_2 or block_4 is less than 2*N), I think it will cause no decrease of multihit[] == true. So, it should actually be devided by DupliFreq() as in SiteFrequencySpectrumPrint().
 
 I will check to make sure
+
+================
+
+Oct 18
+
+Will add another 'spacer' block between dup_1 and single-copy
