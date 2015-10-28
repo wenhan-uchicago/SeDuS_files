@@ -66,7 +66,7 @@ int N = 100; // Population size
 // WHC: PROMETHEUS should be an even number
 int PROMETHEUS = 100; // Number of generations for each genealogy
 
-int SUPERTIME = 200; // Number of simulations per execution
+int SUPERTIME = 2; // Number of simulations per execution
 int BLOCKLENGTH = 10000; // Block length
 int SAMPLE = 50; // Sample size
 #define MUTTABLESIZE 1000000 // Maximum number of mutations (size of muttable)
@@ -96,7 +96,7 @@ int STRUCTURED_2_TIME = 30;
 
 
 // WHC: PHASE_V_TIME * N is the number of generations of Phase V
-int PHASE_V_TIME = 60;
+int PHASE_V_TIME = 30;
 int PHASE_V_LENGTH = (int) PHASE_V_TIME * N;
 
 // WHC: phaseVI time
@@ -112,12 +112,8 @@ int STRUCTURED_2 = (int) STRUCTURED_2_TIME * N;
 
 float THETA = 0.001; // Population scaled mutation rate: THETA = 4 N mu
 //float R = 10; // Population scaled crossover rate: R = 4 N rho*BLOCKLENGTH
-//float R = 100;
-
-// WHC: important, both R and C need to be re-scaled before phaseIV()!!!
-float R = 3200;
-//float C = 0.5; // Population scaled gene conversion rate: C = 4N*kappa*lambda
-float C = 8.4;
+float R = 100;
+float C = 0.5; // Population scaled gene conversion rate: C = 4N*kappa*lambda
 
 // int numHS = 1; // Number of hotspots
 // int numHS = 3; // WHC: Number of hotspots, single_2 is a scaled hopspot representing a 2MB region
@@ -206,8 +202,7 @@ float similarityInConvTract = 0; // Percent of similarity required for conversio
  *     i.e. if (p <= 1/3) choose ori & dup_1; else if (1/3 < p <= 2/3) choose ori & dup_2; else if (p > 2/3) choose dup1&2;
  */
 
-//const float ori_to_dup_1 = 0.5, ori_to_dup_2 = 0.5, dup_1_to_dup_2 = 0.5;
-const float ori_to_dup_1 = 5.0 / 6, ori_to_dup_2 = 1.0 / 6, dup_1_to_dup_2 = 1.0 / 6;
+const float ori_to_dup_1 = 0.5, ori_to_dup_2 = 0.5, dup_1_to_dup_2 = 0.5;
 // Percentage of gene conversion events that occur from the original to the duplicated block
 // WHC: donorRatio initialization
 float donorRatio[5][5] = {
@@ -628,8 +623,6 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       crossoverRatio[3] = 0;
       crossoverRatio[4] = 0;
 
-      C = 1.2;
-      kappa = C / (4 * N * meanTractLength);
       
       /*  PHASE II: STRUCTURED TRAJECTORY  */
       cout << "PHASE II" << "\n";
@@ -651,14 +644,10 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       // need to change this here
       
       crossoverRatio[0] = 0.08;
-      crossoverRatio[1] = 0.24;
+      crossoverRatio[1] = 0.04;
       crossoverRatio[2] = 0.04;
-      crossoverRatio[3] = 0.60;
+      crossoverRatio[3] = 0.80;
       crossoverRatio[4] = 0.04;
-
-      C = 8.4;
-      kappa = C / (4 * N * meanTractLength);
-
       
       /* PHASE IV: STRUCTURED_2 TRAJECTORY */
       // WHC: for generating dup_2
@@ -4885,21 +4874,12 @@ bool sorty (fertility_info i,fertility_info j) {
 // WHC: randomly pick 0, 1 or 2, with 
 int pick_a_pair(int mode) {
   if (mode == 1) {		// mode 1, giving dup_1 lower chance
-    //    int p = rand() % 10;	// generate 0 - 9
-    int p = rand() % 84;	// generate 0 - 83
-    //    if (p == 0) {
-    if (p >= 0 && p < 12) {
-      // 12/84
-      // 0 is ori <-> dup_1
+    int p = rand() % 10;	// generate 0 - 9
+    if (p == 0) {
       return 0;
-      //    } else if (p == 9) {
-    } else if (p >= 72 && p < 84) {
-      // 12/84
-      // 2 is dup_1 <-> dup_2
+    } else if (p == 9) {
       return 2;
-    } else if (p >= 12 && p < 72) {
-      // 60/84
-      // 1 is ori <-> dup_2
+    } else if (p > 0 && p < 9) {
       return 1;
     } else {
       cout << "wrong in pick_a_pair().\n";
@@ -4907,8 +4887,6 @@ int pick_a_pair(int mode) {
     }
   } else if (mode == 2) {	// mode 2, pick equally 0, 1, 2
     int p = rand() % 3;
-    //int p = rand() % 2;
-
     return p;
   }
   
