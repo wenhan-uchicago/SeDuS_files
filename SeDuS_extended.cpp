@@ -2907,6 +2907,10 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	block_1 = ori_index;
 	block_2 = dup_1;
 	donorRatio = p_donorRatio[0][2];
+      } else if (chr1->b == 4 && chr2->b == 4) {
+	block_1 = ori_index;
+	block_2 = dup_1;
+	donorRatio = p_donorRatio[0][2];
       } else if (chr1->b == 6 || chr2->b == 6) {	// WHC: could pick ori, dup_1, dup_2 blocks; means already in phaseIV(), at least 3 blocks for any chrom
 
 	//	cout << "this IGC should also happen between the same block in different chroms.\n"; NO! IGC only between different blocks
