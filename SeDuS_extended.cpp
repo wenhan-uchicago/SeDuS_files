@@ -58,6 +58,10 @@ using namespace std;
 //// SIMULATION PRINCIPAL VARIABLES ////
 ////////////////////////////////////////
 
+float pairwise_divergence_between_reference(int h, int n, int blockA, int blockB);
+
+double time_inter = 0.5;	// WHC: the threshold for totaltime to print
+
 int how_many_new_mutations_in_dup = 0; // WHC: counting how many new mutations happened in block_0, 2 or 4
 
 
@@ -66,7 +70,7 @@ int N = 100; // Population size
 // WHC: PROMETHEUS should be an even number
 int PROMETHEUS = 100; // Number of generations for each genealogy
 
-int SUPERTIME = 200; // Number of simulations per execution
+int SUPERTIME = 1; // Number of simulations per execution
 int BLOCKLENGTH = 10000; // Block length
 int SAMPLE = 50; // Sample size
 #define MUTTABLESIZE 1000000 // Maximum number of mutations (size of muttable)
@@ -112,12 +116,13 @@ int STRUCTURED_2 = (int) STRUCTURED_2_TIME * N;
 
 float THETA = 0.001; // Population scaled mutation rate: THETA = 4 N mu
 //float R = 10; // Population scaled crossover rate: R = 4 N rho*BLOCKLENGTH
-//float R = 100;
+float R = 100;
 
 // WHC: important, both R and C need to be re-scaled before phaseIV()!!!
-float R = 3200;
+//float R = 3200;
 //float C = 0.5; // Population scaled gene conversion rate: C = 4N*kappa*lambda
-float C = 8.4;
+//float C = 8.4;
+float C = 2;
 
 // int numHS = 1; // Number of hotspots
 // int numHS = 3; // WHC: Number of hotspots, single_2 is a scaled hopspot representing a 2MB region
@@ -207,7 +212,8 @@ float similarityInConvTract = 0; // Percent of similarity required for conversio
  */
 
 //const float ori_to_dup_1 = 0.5, ori_to_dup_2 = 0.5, dup_1_to_dup_2 = 0.5;
-const float ori_to_dup_1 = 5.0 / 6, ori_to_dup_2 = 1.0 / 6, dup_1_to_dup_2 = 1.0 / 6;
+const float ori_to_dup_1 = 0.5, ori_to_dup_2 = 0, dup_1_to_dup_2 = 0.5;
+//const float ori_to_dup_1 = 5.0 / 6, ori_to_dup_2 = 1.0 / 6, dup_1_to_dup_2 = 1.0 / 6;
 // Percentage of gene conversion events that occur from the original to the duplicated block
 // WHC: donorRatio initialization
 float donorRatio[5][5] = {
@@ -242,7 +248,7 @@ vector<vector<int>> duplicontent_2;
 // WHC: lose_of_duplicontent[] for phaseVI()
 vector<vector<int>> lose_of_duplicontent;
 
-std::vector<std::vector<bool>> IGCmatrix;// Boolean Matrix codifying if a chromosome undergoes IGC or not 
+std::vector<std::vector<bool>> IGCmatrix;// Boolean Matrix codifying if a chromosome undergoes IGC or not
 
 //// GLOBAL VARIABLES AND STATISTICAL QUANTITIES ////
 std::vector<chrom> table;
@@ -382,6 +388,9 @@ void Generate_phaseVI_trajectory(int);
 // WHC: randomly pick 0, 1, 2 with desired propotions
 int pick_a_pair(int);
 
+// WHC: specify the mode of pick_a_pair() here
+int pick_a_pair_mode = 2;
+
 
 void print_fertility();
 float round(float, int);
@@ -411,20 +420,20 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
   }
   using namespace std;
   int correctArguments = 0;
-   
+
   int argN, argk, argBlockLength, argSample, argBurnIn, argBigTime;
-  int sup, timeToFixation=0, num;  
+  int sup, timeToFixation=0, num;
   float argTheta, argR, argC, argMTL, argMEPS, argDonorRatio, argSameDifIGC, Beg, End, HSRatio;
   //  bool notSC = 0;
   bool notSC = 1;
-		
+
   if (argc < 2) { // Check the value of argc. If not enough parameters have been passed, inform user and exit.
     cout << "You need to provide a Simulation ID\n";
     exit(0);
   } else { // IF AT LEAST SimulationID IS PROVIDED
     letter = argv[1]; // WHC: letter is SimuID
     for (int i = 2; i < argc; i++) { // ITERATE OVER THE REST OF ARGUMENTS
-			
+
       if (i + 1 != argc){ // Check that it hasn't finished parsing
 	std::string str = argv[i];
 	const char *cstr = str.c_str(); // WHC: return a C-type string pointer
@@ -483,16 +492,16 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
 	    sumRatio = sumRatio + HSRatio;
 	  }
 	  if(sumRatio != 1.000) { cout << "Sum of hotspot ratios must be 1.\n"; exit(0);}
-				 
+
 	}
       }
     }
   }
 
-  
+
   multihit.resize(BLOCKLENGTH); // WHC: allocate BLOCKLENGTH-long size for vector multihit
   multihit_single.resize(BLOCKLENGTH);
-  
+
   table.resize(4*N);	      // WHC: a table of struct chroms
   pointer.resize(2);for(unsigned int i=0;i<pointer.size();i++){pointer[i].resize(2*N);} // WHC: pointers to chroms
   sampleN[0] = {SAMPLE};
@@ -508,7 +517,7 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
   // WHC: lose_of_duplicontent[] records which chrom only has 4 blocks instead of 5
   // (chrom at the beginning carrying 4 blocks, similar to duplicontent[]
   lose_of_duplicontent.resize(2); for (unsigned int i = 0; i < lose_of_duplicontent.size(); ++i) {lose_of_duplicontent[i].resize(2 * N);}
-  
+
   IGCmatrix.resize(2 * N);for(unsigned int i=0;i<IGCmatrix.size();i++){IGCmatrix[i].resize(PROMETHEUS);}
 
   correctArguments = 1;
@@ -519,9 +528,9 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
   kappa = C / (4 * N * meanTractLength);
 
   //  kappa = 0;
-  
-  TIMELENGTH = (int) BIGTIME * N; 
-  BURNIN = (int) BURNINTIME * N; 
+
+  TIMELENGTH = (int) BIGTIME * N;
+  BURNIN = (int) BURNINTIME * N;
 
 
   //// SET DEFAULT PARAMETERS
@@ -533,7 +542,7 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
     crossoverEnd[0] = 2*BLOCKLENGTH;
     crossoverRatio[0] = 1;
   }
-	
+
   if (correctArguments == 1){ // WHC: to set random number generator from current TIME
     int i, j, h, o; //endTime;
     time_t seconds;	// WHC: seconds between now and 1970/1/1
@@ -547,9 +556,9 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
     profile  << "TimeLength\tC\tMeanTractLength\tDonorRatio\tMEPS\tProportionSameDifIGC(w)\tR\tNumOfHS";
     for (j = 0; j < numHS; j++) {
       profile  << "\tHS" << j << "_st\tHS" << j << "_end\tHS" << j <<"_ratio";
-    } 
+    }
     profile << "\n";
-		
+
     profile << SUPERTIME << "\t" << SAMPLE << "\t" << PROMETHEUS << "\t" << N << "\t" << THETA << "\t" << BLOCKLENGTH << "\t" << dupType << "\t" ;
     profile << BURNIN << "\t" << timeToFixation << "\t" << TIMELENGTH << "\t" << C << "\t"<< meanTractLength << "\t";
     profile << donorRatio << "\t" << meps  << "\t" << sameDifIGC << "\t" << R << "\t" << numHS << "";
@@ -568,14 +577,14 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       for (int tt=0 ; tt < PROMETHEUS-1 ; tt++) {fertility_ini[i][tt] = false;}
     }
 
-    
+
     // INITIALIZATION SUPERTIME
     for (run = 0; run < SUPERTIME; run++) {
       cout << "SUPERTIME = " << run << "\n";
       time(&seconds); // WHC: second time, possibly redundency
       //srand((unsigned int) seconds);
       srand((unsigned int) seconds);
-			
+
 
       ////////////////////////////////////
       //  BUILD THE INITIAL POPULATION  //
@@ -598,7 +607,7 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       duFreq_2 = false;
 
       loseFreq = false;
-      
+
       for (j = 0; j < BLOCKLENGTH; j++) { multihit[j] = false; multihit_single[j] = false; }
 
       //////////////////////
@@ -615,7 +624,7 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       crossoverRatio[2] = 0;
       crossoverRatio[3] = 0;
       crossoverRatio[4] = 0;
-      
+
       /*  PHASE I: BURN-IN  */
       cout << "PHASE I" << "\n";
       prev_pres ret = phaseI();
@@ -628,9 +637,10 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       crossoverRatio[3] = 0;
       crossoverRatio[4] = 0;
 
-      C = 1.2;
+      //      C = 1.2;
       kappa = C / (4 * N * meanTractLength);
-      
+      //      kappa = 0;
+
       /*  PHASE II: STRUCTURED TRAJECTORY  */
       cout << "PHASE II" << "\n";
       //endTime=
@@ -649,17 +659,18 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       //      crossoverRatio[maxNumOfHS] = {0.15, 0.8, 0.05}; // Relative weights of crossover regions
 
       // need to change this here
-      
+
       crossoverRatio[0] = 0.08;
       crossoverRatio[1] = 0.24;
       crossoverRatio[2] = 0.04;
       crossoverRatio[3] = 0.60;
       crossoverRatio[4] = 0.04;
 
-      C = 8.4;
+      //      C = 8.4;
       kappa = C / (4 * N * meanTractLength);
+      //      kappa = 0;
 
-      
+
       /* PHASE IV: STRUCTURED_2 TRAJECTORY */
       // WHC: for generating dup_2
       cout << "PHASE IV" << '\n';
@@ -674,7 +685,7 @@ int main ( int argc, char* argv[] ) { // WHC: argc is the # of arguments passed 
       /* PHASE VI: LOSING dup_1 */
       cout << "PHASE VI" << '\n';
       phaseVI(0, 1, kappa);
-      
+
       for (j = 0; j < B+2; j++) {
       	for (o = 0; o < numofsamples; o++) {samplefile[j][o][0] << "\n";samplefile[j][o][1] << "\n";}
       }
@@ -707,7 +718,7 @@ struct prev_pres phaseI(){
 
   // WHC: I think prev and pres is for switching between present generation and previous generations within pointer[][]
   // WHC: so pointer will always maintain 2 generations' information at a time, in parallel, and switch pres & prev then
-  
+
   int prev = 0;
   int pres = 1;
   bool does_print = false;
@@ -779,7 +790,7 @@ void phaseII(int timeToFixation,int prev, int pres, float k){
 	  parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,otheri,t);// PARENT PICKING (with recombination)
 	  mutation(mu, otheri,pres);// MUTATION and CONVERSION (for each fertile chromosome)
 	}
-	conversion(kappa, t, i, pres, donorRatio, sameDifIGC);							
+	conversion(kappa, t, i, pres, donorRatio, sameDifIGC);
       }else {skip = false;}
     }
     // CALCULATE THE STATISTICS
@@ -790,7 +801,15 @@ void phaseII(int timeToFixation,int prev, int pres, float k){
 void phaseIII(float k){
   bool does_print = false;
   bool run = false;
+
+  clock_t start, finish;
+  double totaltime;
+
+
   for (era = (int) (BURNIN + STRUCTURED) / PROMETHEUS; era < (int) TIMELENGTH / PROMETHEUS; era++) {
+
+    start = clock();
+
     // GENEALOGY (all chr have the duplication, there are no two populations to take into account)
     cout << "running phaseIII() era = " << era << '\n';
     genealogy(rho * BLOCKLENGTH, 0, (2 * k * BLOCKLENGTH));
@@ -814,13 +833,15 @@ void phaseIII(float k){
 	  parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,otheri,t);// PARENT PICKING (with recombination)
 	  mutation(mu, otheri,pres);// MUTATION and CONVERSION (for each fertile chromosome)
 	}
-	conversion(kappa, t, i, pres, donorRatio, sameDifIGC);							
+	conversion(kappa, t, i, pres, donorRatio, sameDifIGC);
       }else {skip = false;}
     }
     // CALCULATE THE STATISTICS
+    /* Not in phaseIII anymore, in phaseVI
     if(era == ((int) (TIMELENGTH/PROMETHEUS)-1)){
       does_print=true;
     }
+    */
 
     /* WHC: testing whether a mutational position has occured more than once for each block
     if (run == false) {
@@ -832,6 +853,11 @@ void phaseIII(float k){
     */
     statistics(pres, does_print);
 
+    finish = clock();
+    totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+    cout << "The runtime of this era is " << totaltime << '\n';
+
+
   }
 }
 
@@ -841,6 +867,10 @@ void phaseIII(float k){
 void phaseIV(int timeToFixation,int prev, int pres, float k){
   bool does_print = false;
   bool run = false;
+
+  clock_t start, finish;
+  double totaltime;
+
   // Generating Fixation Trajectory in a diploid population
   int endTime = GenerateFixationTrajectory(STRUCTURED_2 + 1, timeToFixation);
   // Picking the first chromosome with the duplication (eva)
@@ -861,9 +891,12 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
   // BURNIN/PROMETHEUS -> (BURNIN+STRUCTURED)/PROMETHEUS (30 -> 50)
   // ==========================================================================================================================
   // WHC: stoped here
-  
+
   //  for (era = (int) BURNIN / PROMETHEUS; era < (int) (BURNIN + STRUCTURED) / PROMETHEUS; era++) {
   for (era = (int) TIMELENGTH / PROMETHEUS; era < (int) (TIMELENGTH + STRUCTURED_2) / PROMETHEUS; era++) {
+
+    start = clock();
+
     // WHC: cout << "TIMELENGTH = " << TIMELENGTH << " " << "TIMELENGTH + STRUCTURED_2 = " << TIMELENGTH + STRUCTURED_2 << '\n';
     // GENEALOGY (with recombination and taking into account that duplicated chr have duplicated ancestor)
     //    genealogy(rho * BLOCKLENGTH, 1, (2 * k * BLOCKLENGTH));
@@ -875,7 +908,7 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
     bool skip = false;
 
     //    how_many_new_mutations_in_dup = 0;
-    
+
     // WHC: I think it is good until here
     for (std::vector<fertility_info>::iterator it=fertility_list.begin(); it!=fertility_list.end(); ++it){
       // as long as PROMETHEUS is an even number, always end up being prov = 0, pres = 1
@@ -897,13 +930,13 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
 	  parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,otheri,t);// PARENT PICKING (with recombination)
 	  mutation(mu, otheri,pres);// MUTATION and CONVERSION (for each fertile chromosome)
 	}
-	conversion(kappa, t, i, pres, donorRatio, sameDifIGC);							
+	conversion(kappa, t, i, pres, donorRatio, sameDifIGC);
       }else {skip = false;}
     }
     // CALCULATE THE STATISTICS
 
     //    cout << "Then, there are " << how_many_new_mutations_in_dup << " introduced.\n\n";
-    
+
     statistics(pres, does_print);
 
     /* ================================================================ */
@@ -927,7 +960,11 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
     }
     */
 
-    
+    finish = clock();
+    totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+    cout << "The runtime of this era is " << totaltime << '\n';
+
+
   }
 }
 
@@ -941,7 +978,13 @@ void phaseIV(int timeToFixation,int prev, int pres, float k){
 void phaseV(float k){
   bool does_print = false;
   bool run = false;
+
+  clock_t start, finish;
+  double totaltime;
+
   for (era = (int) (TIMELENGTH + STRUCTURED_2) / PROMETHEUS; era < (int) (TIMELENGTH + STRUCTURED_2 + PHASE_V_LENGTH) / PROMETHEUS; era++) {
+
+    start = clock();
 
     cout << "Running phaseV era = " << era << '\n';
     // GENEALOGY (all chr have the duplication, there are no two populations to take into account)
@@ -964,13 +1007,13 @@ void phaseV(float k){
 	parentpicking(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);// PARENT PICKING (with recombination)
 
 	// WHC: use phaseVI's function to test
-	
+
 	//	parentpicking_for_phaseVI(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);
 	//	mutation(mu, i,pres);// MUTATION and CONVERSION (for each fertile chromosome)
 
 	//mutation_for_phaseVI(mu, i,pres);
 	mutation(mu, i,pres);
-	
+
 	if(IGCmatrix[i][t]==true && (i%2 == 0)){
 	  skip = true;
 	  int otheri = i+1;
@@ -978,16 +1021,13 @@ void phaseV(float k){
 	  mutation(mu, otheri,pres);// MUTATION and CONVERSION (for each fertile chromosome)
 	  //mutation_for_phaseVI(mu, otheri,pres);
 	}
-	conversion(kappa, t, i, pres, donorRatio, sameDifIGC);							
+	conversion(kappa, t, i, pres, donorRatio, sameDifIGC);
       }else {skip = false;}
     }
     // CALCULATE THE STATISTICS
-    if(era == ((int) (TIMELENGTH/PROMETHEUS)-1)){
-      does_print=true;
-    }
 
     //    cout << "Then, there are " << how_many_new_mutations_in_dup << " introduced.\n\n";
-    
+
     /* WHC: testing, as before, to see if muttable[] has redundency
     if (run == false) {
       for (int r = 0; r < MutCount; ++r) {
@@ -998,7 +1038,13 @@ void phaseV(float k){
     */
     statistics(pres, does_print);
     //    statistics_for_phaseVI(pres, does_print);
-    
+
+
+    finish = clock();
+    totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+    cout << "The runtime of this erais " << totaltime << '\n';
+
+
   }
 }
 
@@ -1010,14 +1056,21 @@ void phaseV(float k){
 void phaseVI(int prev, int pres, float k) {
   bool does_print = false;
   bool run = false;
+
+  clock_t start, finish;
+  double totaltime;
+
+
   // Generating Fixation Trajectory in a diploid population
   Generate_phaseVI_trajectory(2); // WHC: trajectory (absolute number of chroms carrying 4 blocks instead of 5)
+  // WHC: frequence-dependent selection with disturbance
+  //  Generate_phaseVI_trajectory(3); // WHC: trajectory (absolute number of chroms carrying 4 blocks instead of 5)
 
   // WHC: the Generate_phaseVI_trajectory() will generate #chroms that lose dup_1
   // WHC: however, as crossover will change it...
   // WHC: so, lose_of_duplicontent[previous][] must be re-sorted
 
-  
+
   // Picking the first chromosome with the lose of dup_1 (eva)
   int eva = (int) (rand() % (2 * N));
   for (int i = 0; i < 2 * N; i++) {
@@ -1031,7 +1084,7 @@ void phaseVI(int prev, int pres, float k) {
 
   lose_of_duplicontent[1][0] = eva;
   lose_of_duplicontent[1][eva] = 0;
-  
+
   // ================
   // WHC: lose_of_duplication() is for losing one dup_1 block in one chrom (i.e. eva)
   // Duplicate eva (create a new block with old mutations...)
@@ -1046,18 +1099,20 @@ void phaseVI(int prev, int pres, float k) {
 
 
 
-  
+
   loseFreq = true;
 
   // BURNIN/PROMETHEUS -> (BURNIN+STRUCTURED)/PROMETHEUS (30 -> 50)
   // ==========================================================================================================================
   // WHC: stoped here
-  
+
   //  for (era = (int) TIMELENGTH / PROMETHEUS; era < (int) (TIMELENGTH + STRUCTURED_2) / PROMETHEUS; era++) {
   for (era = (int) (TIMELENGTH + STRUCTURED_2 + PHASE_V_LENGTH) / PROMETHEUS; era < (int) (TIMELENGTH + STRUCTURED_2 + PHASE_V_LENGTH + PHASE_VI_LENGTH) / PROMETHEUS; era++) {
 
+    start = clock();
+
     cout << "Running phaseVI, era = " << era << '\n';
-    
+
     // WHC: cout << "TIMELENGTH = " << TIMELENGTH << " " << "TIMELENGTH + STRUCTURED_2 = " << TIMELENGTH + STRUCTURED_2 << '\n';
     // GENEALOGY (with recombination and taking into account that duplicated chr have duplicated ancestor)
     //    genealogy(rho * BLOCKLENGTH, 1, (2 * k * BLOCKLENGTH));
@@ -1067,14 +1122,14 @@ void phaseVI(int prev, int pres, float k) {
 
 
     //    genealogy_2(rho * BLOCKLENGTH, 0, (3 * k * BLOCKLENGTH));
-    
+
     int prom=-1;
     prev = 0;
     pres = 1;
     bool skip = false;
 
     //    how_many_new_mutations_in_dup = 0;
-    
+
     // WHC: I think it is good until here
     for (std::vector<fertility_info>::iterator it=fertility_list.begin(); it!=fertility_list.end(); ++it){
       // as long as PROMETHEUS is an even number, always end up being prov = 0, pres = 1
@@ -1088,7 +1143,7 @@ void phaseVI(int prev, int pres, float k) {
 	// WHC: I think parentpicking() works for phaseIV(); same is true for mutation()
 
 	// WHC: has to decide which blcok does the crossover happen, before decidiing #blocks for child chrom!!!
-	
+
 	parentpicking_for_phaseVI(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,i,t);// PARENT PICKING (with recombination)
 	//	mutation(mu, i,pres);// MUTATION and CONVERSION (for each fertile chromosome)
 	mutation_for_phaseVI(mu, i, pres);
@@ -1100,7 +1155,7 @@ void phaseVI(int prev, int pres, float k) {
 	  parentpicking_for_phaseVI(crossoverBegin, crossoverEnd, crossoverRatio, numHS,prev,pres,otheri,t);// PARENT PICKING (with recombination)
 	  mutation_for_phaseVI(mu, otheri,pres);// MUTATION and CONVERSION (for each fertile chromosome)
 	}
-	conversion_for_phaseVI(kappa, t, i, pres, donorRatio, sameDifIGC);							
+	conversion_for_phaseVI(kappa, t, i, pres, donorRatio, sameDifIGC);
       } else {skip = false;}
     }
     // CALCULATE THE STATISTICS
@@ -1118,10 +1173,15 @@ void phaseVI(int prev, int pres, float k) {
     }
     */
 
-    //    cout << "Then, there are " << how_many_new_mutations_in_dup << " introduced.\n\n";    
+    //    cout << "Then, there are " << how_many_new_mutations_in_dup << " introduced.\n\n";
+    //    if(era == ((int) (TIMELENGTH/PROMETHEUS)-1)){
+    if (era == (int) ((TIMELENGTH + STRUCTURED_2 + PHASE_V_LENGTH + PHASE_VI_LENGTH) / PROMETHEUS - 1)) {
+      does_print=true;
+    }
+
     statistics_for_phaseVI(pres, does_print);
 
-    
+
     // WHC: for printing block_1's mutation positions
     /*
     for (int i = 0; i < 2 * N; ++i) {
@@ -1132,24 +1192,29 @@ void phaseVI(int prev, int pres, float k) {
     }
     */
 
-    
+
     /* ================================================================ */
     /* WHC: just to see how many chroms are carrying dup_2 */
-    /*
+
     int counting_losing_dup_1 = 0, counting_having_dup_1 = 0;
         for (int temp = 0; temp < 2 * N; ++temp) {
-          if (pointer[pres][temp]->b == 4) {
+          if (pointer[pres][temp]->b == 5) {
 	    ++counting_losing_dup_1;
-          } else if (pointer[pres][temp]->b == 5) {
+          } else if (pointer[pres][temp]->b == 6) {
 	    ++counting_having_dup_1;
 	  } else { cout << "WRONG HERE!\n"; exit(0); }
         }
         cout << "The number of chroms that are not carrying dup_1 = " << counting_losing_dup_1 << '\n';
 	cout << "The number of chroms that are carrying dup_1 = " << counting_having_dup_1 << '\n';
-    */
+
     /* WHC: the end of counting
     /* ================================================================ */
-    
+
+    finish = clock();
+    totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+    cout << "The runtime of this erais " << totaltime << '\n';
+
+
   }
 }
 
@@ -1194,9 +1259,10 @@ void open_files() { // Opens write-on files
 
   // WHC: create files for inter-block pairwise divergence
 
-  interblock_divergence[0].open("interblock_divergence_between_[0][3].dat"); // WHC: between original and dup_1
-  interblock_divergence[1].open("interblock_divergence_between_[0][5].dat"); // WHC: between original and dup_2
-  interblock_divergence[2].open("interblock_divergence_between_[3][5].dat"); // WHC: between dup_1 and dup_2
+
+  interblock_divergence[0].open("interblock_divergence_between_[0][3]_" + letter + ".dat"); // WHC: between original and dup_1
+  interblock_divergence[1].open("interblock_divergence_between_[0][5]_" + letter + ".dat"); // WHC: between original and dup_2
+  interblock_divergence[2].open("interblock_divergence_between_[3][5]_" + letter + ".dat"); // WHC: between dup_1 and dup_2
 
   for (o = 0; o < numofsamples; o++) {
     for (j = 0; j < B; j++) {
@@ -1257,7 +1323,7 @@ void genealogy(float probability, int strornot, float IGCprobability) { // Gener
       int trajectime = PROMETHEUS*(era-((int)BURNIN/PROMETHEUS))+tt+1;
       // Randomly mix all the chromosomes of the present generation
       // WHC: as the next step (choosing a father with dup ramdomly always pick the first several chroms, this step is for randomly picking chroms for having dup
-      
+
       for(int i=0 ; i < 2*N ; i++){
 	int val = (int) (rand()%(2*N));
 	int temp = duplicontent[present][i];
@@ -1332,12 +1398,12 @@ void genealogy(float probability, int strornot, float IGCprobability) { // Gener
 	    fertility[ancestry[i][tt]-1][tt-1]=true;
 	  }
 	}
-			
+
 	if((sameDifIGC!=1)){
 	  p = rand() / ((float) RAND_MAX + 1);// Determine IGC processes (with probability "IGCprobability"); WHC: probabily error, should be "Determin IGC processes"; also, it is determining IGC process between 2 chroms, instead of on itself
 
 	  // WHC: the (1 - sameDifIGC), is due to the fact there is another p < (2 * probability * BLOCKLENGTH * sameDifIGC) in void conversion(); this one here is to only test whether IGC comes from different chromosomes, if so, need to record its genealogy; if not, then it either doesn't have IGC, or it has IGC within the same chromosome, which doesn't require genealogy for its partner chromosome
-	  
+
 	  if (p < (IGCprobability * (1-sameDifIGC))){
 	    IGCmatrix[i][tt] = true;
 	    if(i%2==0) {
@@ -1354,15 +1420,15 @@ void genealogy(float probability, int strornot, float IGCprobability) { // Gener
 	      fertility[i+1][tt]=true;
 	    }else{
 	      // WHC: same algorithm as in void phaseII() -- scan from 1st chrom to 2*N th chrom; if i%2 == 0, then record (i+1)'s (its partner that hasn't been scanned yet) genealogy; if i%2 != 0, which means its previous partner is already scanned
-	      
+
 	      if(fertility[i-1][tt]==false){
 		fertility_info fi;
 		fi.x=(i-1);
 		fi.y=(tt);
 		fertility_list.push_back(fi);
-							
+
 		fertility[i-1][tt]=true;
-								
+
 		if(fertility[ancestry[i-1][tt]][tt-1]==false){
 		  fertility_info fi;
 		  fi.x=(ancestry[i-1][tt]);
@@ -1370,7 +1436,7 @@ void genealogy(float probability, int strornot, float IGCprobability) { // Gener
 		  fertility_list.push_back(fi);
 		}
 		fertility[ancestry[i-1][tt]][tt-1] = true;
-							 
+
 		p = rand() / ((float) RAND_MAX + 1);// Determine recombination processes (with probability "probability")
 		if (p < probability){
 		  recombimatrix[i-1][tt] = true;
@@ -1392,10 +1458,10 @@ void genealogy(float probability, int strornot, float IGCprobability) { // Gener
 		    fertility[ancestry[i-1][tt]-1][tt-1]=true;
 		  }
 		}
-		
+
 		// WHC: this p = rand() here, is due to, if i % 2 == 0, then (i+1) will be added to fertility_list
-		// WHC: which means that it will NOT be tested 
-		
+		// WHC: which means that it will NOT be tested
+
 		p = rand() / ((float) RAND_MAX + 1);// Determine recombination processes (with probability "probability")
 		if (p < (IGCprobability * (1-sameDifIGC))){
 		  IGCmatrix[i-1][tt] = true;
@@ -1403,14 +1469,14 @@ void genealogy(float probability, int strornot, float IGCprobability) { // Gener
 	      }
 	    }
 	  }
-	}	
+	}
       }
     }
   }
-	
+
   std::stable_sort (fertility_list.begin(), fertility_list.end(), sortx);
   std::stable_sort (fertility_list.begin(), fertility_list.end(), sorty);
-		
+
 }
 
 /* ======================================================================================================================= */
@@ -1418,6 +1484,14 @@ void genealogy(float probability, int strornot, float IGCprobability) { // Gener
 
 void genealogy_2(float probability, int strornot, float IGCprobability) { // Generates the genealogy based on the FixationTrajectory (with RECOMBINATION)
   // Determine recombination processes (with probability "probability")
+
+  // WHC: for knowing how long
+  //  clock_t start, finish;
+  //  double totaltime;
+
+  //  start = clock();
+
+
   for (int tt=0 ; tt < PROMETHEUS ; tt++){
     for (int i=0 ; i < 2*N ; i++){
       recombimatrix[i][tt] = false;
@@ -1426,13 +1500,13 @@ void genealogy_2(float probability, int strornot, float IGCprobability) { // Gen
   }
 
   // STRUCTURED GENEALOGY (the population is subdivided in 2: one that carries the duplication, built according to trajectime, and the other not carrying the duplication
-  
+
   // WHC: this strornot == 1 means in phaseIV()
   if (strornot == 1){
     //cout << "entra a strornot\n";
     // Pick a parent from the corresponding duplicated/non-duplicated population
     int present=0;
-    
+
     // WHC: previous = 1 is last present = 1; now becomes previous generation
     int previous=1;
     for (int tt=0 ; tt < PROMETHEUS ; tt++){
@@ -1440,7 +1514,7 @@ void genealogy_2(float probability, int strornot, float IGCprobability) { // Gen
       int trajectime = PROMETHEUS*(era-((int)TIMELENGTH/PROMETHEUS))+tt+1;
       // Randomly mix all the chromosomes of the present generation
       // WHC: as the next step (choosing a father with dup ramdomly always pick the first several chroms, this step is for randomly picking chroms for having dup
-      
+
       for(int i=0 ; i < 2*N ; i++){
 	int val = (int) (rand()%(2*N));
 	int temp = duplicontent_2[present][i];
@@ -1456,7 +1530,7 @@ void genealogy_2(float probability, int strornot, float IGCprobability) { // Gen
 	// WHC: as present chroms which will have dup have been chosen before, this is for randomly picking a father
 	// WHC: remember, i = 0, 1, 2, ...
 	int val=(int) (rand()%(fixationTrajectory[trajectime-1]));
-	
+
 	// WHC: FOUND a MISTAKE! should be duplicatent_2[]!!
 	// ancestry[duplicontent[present][i]][tt] = duplicontent[previous][val];
 	ancestry[duplicontent_2[present][i]][tt] = duplicontent_2[previous][val];
@@ -1480,19 +1554,19 @@ void genealogy_2(float probability, int strornot, float IGCprobability) { // Gen
     /* this is for generating the genealogy for phaseVI, the losing of dup_1 for some chroms */
 
     int present=0;
-    
+
     // WHC: previous = 1 is last present = 1; now becomes previous generation
     int previous=1;
     for (int tt=0 ; tt < PROMETHEUS ; tt++){
       // trajectime is the time in which we are in fixationTrajectory[] array (used to know the number of chr that carry the dup at each time)
-      // WHC: as phaseVI_trajectory[] 
+      // WHC: as phaseVI_trajectory[]
       int trajectime = PROMETHEUS*(era-((int) (TIMELENGTH + STRUCTURED_2 + PHASE_V_LENGTH) / PROMETHEUS))+tt+1;
-      
 
-      
+
+
       // Randomly mix all the chromosomes of the present generation
       // WHC: as the next step (choosing a father with dup ramdomly always pick the first several chroms, this step is for randomly picking chroms for having dup
-      
+
       for(int i=0 ; i < 2*N ; i++){
 	int val = (int) (rand()%(2*N));
 	int temp = lose_of_duplicontent[present][i];
@@ -1510,11 +1584,11 @@ void genealogy_2(float probability, int strornot, float IGCprobability) { // Gen
 	int val=(int) (rand()%(phaseVI_trajectory[trajectime-1]));
 
 	// WHC: also, phaseVI_trajectory[0] == 1!!! as is the case for fixationTrajectory[0] = 1
-	
+
 	// ancestry[duplicontent[present][i]][tt] = duplicontent[previous][val];
 	ancestry[lose_of_duplicontent[present][i]][tt] = lose_of_duplicontent[previous][val];
       }
-      
+
       // For all the chr that have not to have the duplication at this time...
       for(int i=phaseVI_trajectory[trajectime] ; i < 2*N ; i++){
 	// Choose a father randomly (from the previous non-duplicated population)
@@ -1567,12 +1641,12 @@ void genealogy_2(float probability, int strornot, float IGCprobability) { // Gen
 	    fertility[ancestry[i][tt]-1][tt-1]=true;
 	  }
 	}
-			
+
 	if((sameDifIGC!=1)){
 	  p = rand() / ((float) RAND_MAX + 1);// Determine IGC processes (with probability "IGCprobability"); WHC: probabily error, should be "Determine IGC processes"; also, it is determining IGC process between 2 chroms, instead of on itself
 
 	  // WHC: the (1 - sameDifIGC), is due to the fact there is another p < (2 * probability * BLOCKLENGTH * sameDifIGC) in void conversion(); this one here is to only test whether IGC comes from different chromosomes, if so, need to record its genealogy; if not, then it either doesn't have IGC, or it has IGC within the same chromosome, which doesn't require genealogy for its partner chromosome
-	  
+
 	  if (p < (IGCprobability * (1-sameDifIGC))){
 	    IGCmatrix[i][tt] = true;
 	    if(i%2==0) {
@@ -1589,15 +1663,15 @@ void genealogy_2(float probability, int strornot, float IGCprobability) { // Gen
 	      fertility[i+1][tt]=true;
 	    }else{
 	      // WHC: same algorithm as in void phaseII() -- scan from 1st chrom to 2*N th chrom; if i%2 == 0, then record (i+1)'s (its partner that hasn't been scanned yet) genealogy; if i%2 != 0, which means its previous partner is already scanned
-	      
+
 	      if(fertility[i-1][tt]==false){
 		fertility_info fi;
 		fi.x=(i-1);
 		fi.y=(tt);
 		fertility_list.push_back(fi);
-							
+
 		fertility[i-1][tt]=true;
-								
+
 		if(fertility[ancestry[i-1][tt]][tt-1]==false){
 		  fertility_info fi;
 		  fi.x=(ancestry[i-1][tt]);
@@ -1605,7 +1679,7 @@ void genealogy_2(float probability, int strornot, float IGCprobability) { // Gen
 		  fertility_list.push_back(fi);
 		}
 		fertility[ancestry[i-1][tt]][tt-1] = true;
-							 
+
 		p = rand() / ((float) RAND_MAX + 1);// Determine recombination processes (with probability "probability")
 		if (p < probability){
 		  recombimatrix[i-1][tt] = true;
@@ -1627,10 +1701,10 @@ void genealogy_2(float probability, int strornot, float IGCprobability) { // Gen
 		    fertility[ancestry[i-1][tt]-1][tt-1]=true;
 		  }
 		}
-		
+
 		// WHC: this p = rand() here, is due to, if i % 2 == 0, then (i+1) will be added to fertility_list
-		// WHC: which means that it will NOT be tested 
-		
+		// WHC: which means that it will NOT be tested
+
 		p = rand() / ((float) RAND_MAX + 1);// Determine recombination processes (with probability "probability")
 		if (p < (IGCprobability * (1-sameDifIGC))){
 		  IGCmatrix[i-1][tt] = true;
@@ -1638,14 +1712,23 @@ void genealogy_2(float probability, int strornot, float IGCprobability) { // Gen
 	      }
 	    }
 	  }
-	}	
+	}
       }
     }
   }
-	
+
   std::stable_sort (fertility_list.begin(), fertility_list.end(), sortx);
   std::stable_sort (fertility_list.begin(), fertility_list.end(), sorty);
-		
+
+
+  /* test-purpose, for know how long this is
+  finish = clock();
+  totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+  if (totaltime >= time_inter) {
+    cout << "The runtime of genealogy_2() is " << totaltime << '\n';
+  }
+  */
+
 }
 
 // WHC: genealogy_2() for phaseIV()
@@ -1662,6 +1745,11 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
   chrom * chr;
   float p;
   double num;
+
+  //  clock_t start, finish;
+  //  double totaltime;
+
+  //  start = clock();
 
   // PARENT-PICKING
   father = ancestry[i][t];
@@ -1744,7 +1832,7 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
 	  chr->mutation[junctionBlock][k] = pointer[prev][partner]->mutation[junctionBlock][k];
 	}
 	//FROM FATHER
-	
+
 	// WHC: copy mutation from [father] from junction point on
 	for (k = 0; k < (pointer[prev][father]->mpb[junctionBlock] - vald0); k++) {
 	  chr->mutation[junctionBlock][k + valr0] = pointer[prev][father]->mutation[junctionBlock][k + vald0];
@@ -1756,7 +1844,7 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
 
 	// WHC: WRONG??? forgot copying some information???
 
-	
+
 	// WHC: as from junction point on, all mutation info comes from father...
 	// WHC: (also, previous step only copy mutation info with the junctionBlock!!!
 	for (j = junctionBlock + 1; j < chr->b; j++) {
@@ -1793,6 +1881,14 @@ void parentpicking(int crossBegin[maxNumOfHS], int crossEnd[maxNumOfHS], float c
     copychr(prev, father, pres, i);
   }
 
+  /*
+  finish = clock();
+  totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+  if (totaltime >= time_inter) {
+    cout << "The runtime of parentpicking() is " << totaltime << '\n';
+  }
+  */
+
 }
 
 /* ================================================================ */
@@ -1808,13 +1904,18 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
     else if crossover happens in HS1 or HS2, then before junction pointer, all informations comes from father.
     this is just to make sure, information about dup_1 (have or lose) comes from father
   ************************************************************************************************************************/
-  
+
   int j, k, junctionBlock, defHS, HS;
   int father, partner, junction, vald0, valr0, childblocks, minblock, recTract, end, beg;
   bool success;
   chrom * chr;
   float p;
   double num;
+
+  //  clock_t start, finish;
+  //  double totaltime;
+
+  //  start = clock();
 
   // PARENT-PICKING
   father = ancestry[i][t];
@@ -1827,7 +1928,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
     } else {
       partner = ancestry[i][t] - 1;
     }
-    
+
     chr = pointer[pres][i];
 
     minblock = minim(pointer[prev][father]->b, pointer[prev][partner]->b);
@@ -1836,7 +1937,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
       // here, either from partner or father does not matter
       childblocks = pointer[prev][partner]->b;
       chr->b = childblocks;
-    
+
 
       //DETERMINE THE HOTSPOT WHERE CROSSOVER WILL OCCUR
 
@@ -1908,7 +2009,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	    chr->mutation[junctionBlock][k] = pointer[prev][partner]->mutation[junctionBlock][k];
 	  }
 	  //FROM FATHER
-	
+
 	  // WHC: copy mutation from [father] from junction point on
 	  for (k = 0; k < (pointer[prev][father]->mpb[junctionBlock] - vald0); k++) {
 	    chr->mutation[junctionBlock][k + valr0] = pointer[prev][father]->mutation[junctionBlock][k + vald0];
@@ -1920,7 +2021,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 
 	  // WHC: WRONG??? forgot copying some information???
 
-	
+
 	  // WHC: as from junction point on, all mutation info comes from father...
 	  // WHC: (also, previous step only copy mutation info with the junctionBlock!!!
 	  for (j = junctionBlock + 1; j < chr->b; j++) {
@@ -2004,7 +2105,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	  junction += beg;
 	  junctionBlock = (int) (junction / BLOCKLENGTH); // block where junction fell
 	  if (junctionBlock > 2) { cout << "this shouldn't happne too!\n"; exit(0); } // WHC: just a doulbe-check
-	  
+
 	  //	   cout << junctionBlock << " ";
 	  // WHC: is the number of mutations before junction point
 	  valr0 = location(junction - junctionBlock*BLOCKLENGTH, prev, partner, junctionBlock); // junction location in the block "junctionBlock" of partner
@@ -2025,7 +2126,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	    chr->mutation[junctionBlock][k] = pointer[prev][partner]->mutation[junctionBlock][k];
 	  }
 	  //FROM FATHER
-	
+
 	  // WHC: copy mutation from [father] from junction point on; until the end of junctionBlock
 	  for (k = 0; k < (pointer[prev][father]->mpb[junctionBlock] - vald0); k++) {
 	    chr->mutation[junctionBlock][k + valr0] = pointer[prev][father]->mutation[junctionBlock][k + vald0];
@@ -2036,7 +2137,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 
 	  // WHC: WRONG??? forgot copying some information???
 
-	
+
 	  // WHC: as from junction point on, all mutation info comes from father...
 	  // WHC: (also, previous step only copy mutation info with the junctionBlock!!!
 	  //	  for (j = junctionBlock + 1; j < chr->b; j++) {
@@ -2080,7 +2181,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	      chr->mutation[1][k] = pointer[prev][father]->mutation[1][k];
 	    }
 	    */
-	    
+
 	  } else if (j == 2) {
 	    // WHC: do nothing
 	    // WCH: NO!!! need to copy information in block 2, 3, 4 to child chrom!! father->mpb[2] = 0 need to be copied too!
@@ -2091,7 +2192,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 		chr->mutation[temp][k] = pointer[prev][father]->mutation[temp][k];
 	      }
 	    }
-	    
+
 	  } else if (j == 3) {
 	    for (int temp = 3; temp < 6; ++temp) {
 	      chr->mpb[temp] = pointer[prev][father]->mpb[temp];
@@ -2111,7 +2212,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	//      if (defHS == 1 || defHS == 2) { // means crossover will happen on block 3 - 4, needs to pick #blocks for child chrom
 	// WHC: I incoporated defHS == 0 here, just need to adjust beg and end
 	// WHC: cannot merge them; because if crossover happen before block 2, chr->b depends on father; otherwise on partner
-	
+
 	// WHC: as crossover happens after dup_1, #blocks(child) = #block(partner); as designed in parentpicking(), left side comes from partner, while right side comes from father
 
 
@@ -2119,11 +2220,11 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	  if crossover happens in block 3 or block 4, all information before junction point comes from father,
 	  to make sure chr->b = pointer[prev][father]->b
 	*/
-	
+
 	//	childblocks = pointer[prev][partner]->b;
 	childblocks = pointer[prev][father]->b;
 	chr->b = childblocks;
-    
+
 
       //DETERMINE THE HOTSPOT WHERE CROSSOVER WILL OCCUR
 
@@ -2145,7 +2246,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
       //      if (((minblock * BLOCKLENGTH) < end) && ((minblock * BLOCKLENGTH) > beg)) {
       //	end = minblock * BLOCKLENGTH;
       //      }
-      
+
 
 	// If neither father and partner have mutations in any block
 	/*      if ((pointer[prev][father]->mpb[0] == 0) && (pointer[prev][father]->mpb[1] == 0) &&
@@ -2170,7 +2271,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	  junction += beg;
 	  junctionBlock = (int) (junction / BLOCKLENGTH); // block where junction fell
 	  if (defHS > 0 && junctionBlock < 4) { cout << "this shouldn't happne!\n"; exit(0); } // WHC: just a doulbe-check
-	  
+
 	  //	   cout << junctionBlock << " ";
 	  // WHC: is the number of mutations before junction point
 	  valr0 = location(junction - junctionBlock*BLOCKLENGTH, prev, partner, junctionBlock); // junction location in the block "junctionBlock" of partner
@@ -2194,7 +2295,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 	    chr->mutation[junctionBlock][k] = pointer[prev][father]->mutation[junctionBlock][k];
 	    }
 	  //FROM FATHER
-	
+
 	  // WHC: copy mutation from [PARTNER] from junction point on
 	    for (k = 0; k < (pointer[prev][partner]->mpb[junctionBlock] - valr0); k++) {
 	      chr->mutation[junctionBlock][k + vald0] = pointer[prev][partner]->mutation[junctionBlock][k + valr0];
@@ -2206,7 +2307,7 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 
 	  // WHC: WRONG??? forgot copying some information???
 
-	
+
 	  // WHC: as from junction point on, all mutation info comes from father...
 	  // WHC: (also, previous step only copy mutation info with the junctionBlock!!!
 	  //	  for (j = junctionBlock + 1; j < chr->b; j++) {
@@ -2229,12 +2330,12 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
 
 
 	}
-	
+
       } else if (defHS == 2) {
 	// WHC: this means no crossover
 	copychr_for_phaseVI(prev, father, pres, i);
       }
-      
+
     } else {
       cout << "something wrong in parentpicking_for_phaseVI() here.\n";
       exit(0);
@@ -2245,6 +2346,14 @@ void parentpicking_for_phaseVI(int crossBegin[maxNumOfHS], int crossEnd[maxNumOf
     //    copychr(prev, father, pres, i);
     copychr_for_phaseVI(prev, father, pres, i);
   }
+
+  /*
+  finish = clock();
+  totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+  if (totaltime >= time_inter) {
+    cout << "The runtime of parentpicking_for_phaseVI() is " << totaltime << '\n';
+  }
+  */
 
 }
 
@@ -2276,7 +2385,7 @@ void duplication(int i,int prev, bool from) {
     cout << "The spacer should have 0 mutations before duplication.\n";
     exit(0);
   }
-  
+
   for (k = 0; k < pointer[prev][adam][0].mpb[0]; k++) {
     pointer[prev][i][0].mutation[3][k] = pointer[prev][adam][0].mutation[0][k];
   }
@@ -2312,7 +2421,7 @@ void duplication_2(int i,int prev, bool from) {
   }
 
   // WHC: also, will assume dup_2 comes from ori now... may need to re-consider
-  
+
   pointer[prev][i][0].mpb[5] = pointer[prev][adam][0].mpb[0];
   pointer[prev][i]->mpb[4] = 0;
   for (k = 0; k < pointer[prev][adam][0].mpb[0]; k++) {
@@ -2322,7 +2431,7 @@ void duplication_2(int i,int prev, bool from) {
   // WHC: need to understand this before changing; changed, need double-check
   for (k = 0; k < MutCount; k++) {
     // WHC: this may be the causes of thousands of tries!!!! Should also copy dup_1's informations!!! (WRONG!!!)
-    
+
     //    if (muttable[k].block == 0 || muttable[k].block == 2) {
     if (muttable[k].block == 0) {
       /*
@@ -2330,7 +2439,7 @@ void duplication_2(int i,int prev, bool from) {
 	WHC: IMPORTANT!!!!
 	WHC: after changing this, the redundency in muttable[].block = 4 is eliminated!!!
        */
-      
+
       muttable[MutCount + tempMutCount].position = muttable[k].position;
       muttable[MutCount + tempMutCount].block = 5;
       tempMutCount++;
@@ -2350,14 +2459,14 @@ void lose_of_duplication(int eva, int prev) {
   // WHC: as even void mutation() only added new mutation into muttable, and lost mutations not erased until FSL()
   // WHC: I think it is fine to just ignore this
   // WHC: also, should consider making mpb[2] == 0?
-  
+
   if (pointer[prev][eva]->b == 6) {
     // WHC: actually chr->b is just a indicator now. still has 6 blocks, and mpb[3] = 0 (dup_1); that's why should use mutation_for_phaseVI()
     pointer[prev][eva]->b = 5;
 
     // WHC: this step is VERY important, as many problems have been caused by this!!!
     pointer[prev][eva]->mpb[3] = 0;
-    
+
   } else {
     cout << "something wrong in lose_of_duplication().\n";
     exit(0);
@@ -2373,29 +2482,37 @@ void mutation(float probability, int i, int pres) {
   chrom * chr;
   chr = pointer[pres][i];
 
+  //  clock_t start, finish;
+  //  double totaltime;
 
-  /* WHC: For test purpose; under realistic scenario, multihit[] == true should not be larger than BLOCKLENGTH
-  int count_multihit = 0, count_multihit_single = 0;
-  for (int t = 0; t < BLOCKLENGTH; ++t) {
-    if (multihit[t] == true) {
-      ++count_multihit;
+  //  start = clock();
+
+
+  // WHC: For test purpose; under realistic scenario, multihit[] == true should not be larger than BLOCKLENGTH
+  // WHC: necessary to prevent too high THETA; especially when kappa = 0
+  if (duFreq == true) {
+    int count_multihit = 0, count_multihit_single = 0;
+    for (int t = 0; t < BLOCKLENGTH; ++t) {
+      if (multihit[t] == true) {
+	++count_multihit;
+      }
+      if (multihit_single[t] == true) {
+	++count_multihit_single;
+      }
     }
-    if (multihit_single[t] == true) {
-      ++count_multihit_single;
+    if (count_multihit >= BLOCKLENGTH || count_multihit_single >= BLOCKLENGTH) {
+      cout << "The multihit or multihit_single is larger than BLOCKLENGTH.\nWill have an infinate loop!\n";
+      exit(0);
     }
+
   }
-  if (count_multihit >= BLOCKLENGTH || count_multihit_single >= BLOCKLENGTH) {
-    cout << "The multihit or multihit_single is larger than BLOCKLENGTH.\nWill have an infinate loop!\n";
-    exit(0);
-  }
-  */
-  
+
   for (j = 0; j < chr->b; j++) {
 
     if (j == 2 || j == 4) {
       continue; 	// WHC: skip block 2 or 4, the two spacers
     }
-    
+
     mutEvents=0;
     p = rand() / ((float) RAND_MAX + 1);
     if (p < (probability * BLOCKLENGTH)) { mutEvents++;
@@ -2413,7 +2530,7 @@ void mutation(float probability, int i, int pres) {
 	how_many_new_mutations_in_dup += mutEvents;
       }
       */
-      
+
       for(int muts=0; muts < mutEvents; muts++){
 	// Randomly choose one NEW mutation position
 	do {
@@ -2464,7 +2581,7 @@ void mutation(float probability, int i, int pres) {
 	  muttable[MutCount].position = muttable[MutCount - 2].position;
 	  MutCount++;
 	}
-      
+
 	//      if (j == 2) {
 	if (j == 3 && duFreq_2 == false) {
 	  // WHC: in phaseII() but not in phaseIV()
@@ -2498,10 +2615,10 @@ void mutation(float probability, int i, int pres) {
 	  muttable[MutCount].position = muttable[MutCount - 2].position;
 	  MutCount++;
 	}
-      
+
       }
 
-	
+
 
     } else if (j == 1) {
       for(int muts=0; muts < mutEvents; muts++){
@@ -2542,6 +2659,15 @@ void mutation(float probability, int i, int pres) {
 
   }
 
+
+  /*
+  finish = clock();
+  totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+  if (totaltime >= time_inter) {
+    cout << "The runtime of mutation() is " << totaltime << '\n';
+  }
+  */
+
 }
 
 
@@ -2554,9 +2680,33 @@ void mutation_for_phaseVI(float probability, int i, int pres) {
   chrom * chr;
   chr = pointer[pres][i];
 
+  //  clock_t start, finish;
+  //  double totaltime;
+
+  //  start = clock();
+
+
+  // WHC: For test purpose; under realistic scenario, multihit[] == true should not be larger than BLOCKLENGTH
+  // WHC: necessary to prevent too high THETA; especially when kappa = 0
+  int count_multihit = 0, count_multihit_single = 0;
+  for (int t = 0; t < BLOCKLENGTH; ++t) {
+    if (multihit[t] == true) {
+      ++count_multihit;
+    }
+    if (multihit_single[t] == true) {
+      ++count_multihit_single;
+    }
+  }
+  if (count_multihit >= BLOCKLENGTH || count_multihit_single >= BLOCKLENGTH) {
+    cout << "The multihit or multihit_single is larger than BLOCKLENGTH.\nWill have an infinate loop!\n";
+    exit(0);
+  }
+
+
+
   // WHC: just slightly adjust this void mutation(), by skiping j == 2 if chr->b == 4
   if (loseFreq == false) { cout << "This mutation_for_phaseVI() is only used for phaseVI().\n"; exit(0); }
-  
+
   for (j = 0; j < 6; j++) {
     if (chr->b == 5 && j == 3) { continue; }
     // WHC: just skip block 2 and 4, the two spacers
@@ -2574,9 +2724,9 @@ void mutation_for_phaseVI(float probability, int i, int pres) {
     }
 
     if (j != 1) {
-      
+
       //      how_many_new_mutations_in_dup += mutEvents;
-      
+
     for(int muts=0; muts < mutEvents; muts++){
       // Randomly choose one NEW mutation position
       do {
@@ -2626,7 +2776,7 @@ void mutation_for_phaseVI(float probability, int i, int pres) {
 	muttable[MutCount].position = muttable[MutCount - 2].position;
 	MutCount++;
       }
-      
+
       //      if (j == 2) {
       if (j == 3 && duFreq_2 == false) {
 	// WHC: in phaseII() but not in phaseIV()
@@ -2660,7 +2810,7 @@ void mutation_for_phaseVI(float probability, int i, int pres) {
 	muttable[MutCount].position = muttable[MutCount - 2].position;
 	MutCount++;
       }
-      
+
     }
     } else if (j == 1) {
       for(int muts=0; muts < mutEvents; muts++){
@@ -2697,6 +2847,15 @@ void mutation_for_phaseVI(float probability, int i, int pres) {
     }
   }
 
+  /*
+  finish = clock();
+  totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+  if (totaltime >= time_inter) {
+    cout << "The runtime of mutation_for_phaseVI() is " << totaltime << '\n';
+  }
+  */
+
+
 }
 
 /* ================================================================ */
@@ -2712,14 +2871,18 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
   chr1 = pointer[pres][i];
   IGC = 0;
 
+  //  clock_t start, finish;
+  //  double totaltime;
+
+  //  start = clock();
 
 
-  
+
   // If the chr has duplicated block
   //  if (chr1[0].b == 3) {
   // WHC: as long as #blocks >= 3
   // WHC: REMEMBER, #blocks also determine which 2 pairs of duplications could be selected
-  
+
   if (chr1->b >= 4) {
     if((sameDifIGC!=1) && (IGCmatrix[i][t]==true)){ // IGC on different chroms
       IGC = 1;
@@ -2728,27 +2891,31 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	partner = (i + 1);
       } else {
 	partner = (i - 1);
-      }			
+      }
       chr2 = pointer[pres][partner];
 
       /* ================================================================================================ */
       // beginning of new donor/receptor selection method
-      
+
       // WHC: randomly choose a pair of duplicated blocks, depending on the number of blocks chrom has
       // WHC: also, return value of donorRatio
       int block_1, block_2;
       float donorRatio;
-      
-      if (chr1->b == 4 && chr2->b <= 4) {		// WHC: pick 2 pairs
+
+      //      if (chr1->b == 4 && chr2->b <= 4) {		// WHC: pick 2 pairs
+      if (chr1->b == 4 && chr2->b == 2) {		// WHC: pick 2 pairs
 	block_1 = ori_index;
 	block_2 = dup_1;
 	donorRatio = p_donorRatio[0][2];
       } else if (chr1->b == 6 || chr2->b == 6) {	// WHC: could pick ori, dup_1, dup_2 blocks; means already in phaseIV(), at least 3 blocks for any chrom
+
+	//	cout << "this IGC should also happen between the same block in different chroms.\n"; NO! IGC only between different blocks
+	//	exit(0);
 	// WHC: randomly generate 0, 1, 2
 	// WHC: which correspond to ori&dup_1, ori&dup_2 and dup_1&dup_2 pairs
 
 	// WHC: pick_a_pair() is a function, that picks 0, 1 or 2, with desired propotions
-	int which_pair = pick_a_pair(1);
+	int which_pair = pick_a_pair(pick_a_pair_mode);
 	//	int which_pair = rand() % 3;
 
 	if (which_pair == 0) {	// WHC: ori&dup_1 pair
@@ -2781,7 +2948,7 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	donor = block_2;
 	receptor = block_1;
       }
-      
+
       if (chr2->b == 6 && chr1->b == 6) {
 	p = rand() / ((float) RAND_MAX + 1); // WHC: randomly choose from which chromosome to which
 	if (p < 0.5) {
@@ -2792,10 +2959,14 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	  chrReceptor = i;
 	}
       } else if (chr2->b == 6 && chr1->b == 4) {
-	if (block_2 == dup_2) {	// only chr2 can be donor
+	//	if (block_2 == dup_2) {	// only chr2 can be donor
+	if (donor == dup_2) {	// only chr2 can be donor
 	  chrDonor = partner;
 	  chrReceptor = i;
-	} else {		// randomly chosen; WHC: as block_2 = dup_1... (WHC: wise to make block_2 > block_1)
+	} else if (receptor == dup_2) {
+	  chrDonor = i;
+	  chrReceptor = partner;
+	} else if (donor != dup_2 && receptor != dup_2) {		// randomly chosen; WHC: as block_2 = dup_1... (WHC: wise to make block_2 > block_1)
 	  p = rand() / ((float) RAND_MAX + 1); // WHC: randomly choose from which chromosome to which
 	  if (p < 0.5) {
 	    chrDonor = i;
@@ -2807,9 +2978,12 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	}
       } else if (chr2->b == 4) { // WHC: chr2 only contains ori and dup_1 (phase which loses dup_1 will not be considered here
 	// chr1->b could either be 3 or 5
-	if (block_2 == dup_2) {
+	if (donor == dup_2) {
 	  chrDonor = i;
 	  chrReceptor = partner;
+	} else if (receptor == dup_2) {
+	  chrReceptor = i;
+	  chrDonor = partner;
 	} else {
 	  p = rand() / ((float) RAND_MAX + 1); // WHC: randomly choose from which chromosome to which
 	  if (p < 0.5) {
@@ -2820,22 +2994,26 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	    chrReceptor = i;
 	  }
 	}
-	
+
       } else if (chr2->b == 2) {
 	// WHC: may be a source of errors, careful
 	//	if(donor == 2){
-	if (donor == dup_1 || donor == dup_2) { // WHC: this chrom does not have duplications
+	//	if (donor == dup_1 || donor == dup_2) { // WHC: this chrom does not have duplications
+	if (donor == dup_1) {
 	  chrDonor = i;
 	  chrReceptor = partner;
-	} else {
+	} else if (donor == ori_index) { // WHC: equivelent to else if (receptor == dup_1)
 	  chrDonor = partner;
 	  chrReceptor = i;
+	} else {
+	  cout << "this should be dup_2 here.\n";
+	  exit(0);
 	}
       }
 
       // end of new donor/receptor selection method
       /* ================================================================================================ */
-      
+
     } else {
       // WHC: if IGCmatrix[i][t] == false, this means that no IGC between chroms will happen, due to void genealogy()
       // WHC: but IGC could still happen within chrom
@@ -2866,8 +3044,8 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	  IGC = 1;
 	  // Determines which block will be the donor and which will be the receptor
 
-	  
-	  int which_pair = pick_a_pair(1);
+
+	  int which_pair = pick_a_pair(pick_a_pair_mode);
 	  //	  int which_pair = rand() % 3;
 	  int block_1, block_2;
 	  float donorRatio;
@@ -2928,7 +3106,7 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
     }
 
     // WHC: not changed, remains the same; I assume it will work :)
-    
+
     if(IGC == 1) {
       chr1 = pointer[pres][chrDonor];
       chr2 = pointer[pres][chrReceptor];
@@ -2945,7 +3123,7 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
 	  junction += 1;
 	}
       }
-	
+
       // Tests for MEPS, 100% identity tract to allow conversion
       vald0 = location(junction - meps/2, pres, chrDonor, donor);
       valdf = location(junction + meps/2, pres, chrDonor, donor);
@@ -3007,6 +3185,15 @@ void conversion(float probability, int t, int i, int pres, float (*p_donorRatio)
       }
     }
   }
+
+  /*
+  finish = clock();
+  totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+  if (totaltime >= time_inter) {
+    cout << "The runtime of conversion() is " << totaltime << '\n';
+  }
+  */
+
 }
 
 
@@ -3020,14 +3207,17 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
   chr1 = pointer[pres][i];
   IGC = 0;
 
+  //  clock_t start, finish;
+  //  double totaltime;
+
+  //  start = clock();
 
 
-  
   // If the chr has duplicated block
   //  if (chr1[0].b == 3) {
   // WHC: as long as #blocks >= 3
   // WHC: REMEMBER, #blocks also determine which 2 pairs of duplications could be selected
-  
+
   if (chr1->b >= 5) {
     if((sameDifIGC!=1) && (IGCmatrix[i][t]==true)){ // IGC on different chroms
       IGC = 1;
@@ -3036,29 +3226,28 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
 	partner = (i + 1);
       } else {
 	partner = (i - 1);
-      }			
+      }
       chr2 = pointer[pres][partner];
 
       /* ================================================================================================ */
       // beginning of new donor/receptor selection method
-      
+
       // WHC: randomly choose a pair of duplicated blocks, depending on the number of blocks chrom has
       // WHC: also, return value of donorRatio
       int block_1, block_2;
       float donorRatio;
-      
-      if (chr1->b == 5 || chr2->b == 5) { // WHC: pick 2 pairs
+
+      //      if (chr1->b == 5 || chr2->b == 5) { // WHC: pick 2 pairs
 	// WHC: REMINDER!! Probably should be if (chr1->b == 5 && chr2->b == 5) and add another if ( || )
 	// WHC: IGC could only happend between ori and dup_2
+      if (chr1->b == 5 && chr2->b == 5) { // WHC: pick 2 pairs
 	block_1 = ori_index;
 	block_2 = dup_2;
 	//	donorRatio = p_donorRatio[0][2]; WHC: mistake!!
 	donorRatio = p_donorRatio[0][4];
-      } else if (chr1->b == 6 && chr2->b == 6) {	// WHC: could pick ori, dup_1, dup_2 blocks; means already in phaseIV(), at least 3 blocks for any chrom
-	// WHC: randomly generate 0, 1, 2
-	// WHC: which correspond to ori&dup_1, ori&dup_2 and dup_1&dup_2 pairs
-
-	int which_pair = pick_a_pair(1);
+      } else if (chr1->b == 5 || chr2->b == 5) { // WHC: only one of them is 5
+	// WHC: same as if both are 6, could pick 3 pairs
+	int which_pair = pick_a_pair(pick_a_pair_mode);
 	//	int which_pair = rand() % 3;
 
 	if (which_pair == 0) {	// WHC: ori&dup_1 pair
@@ -3077,6 +3266,31 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
 	  cout << "something is wrong in void conversion()\n";
 	  exit(0);
 	}
+
+      } else if (chr1->b == 6 && chr2->b == 6) {	// WHC: could pick ori, dup_1, dup_2 blocks; means already in phaseIV(), at least 3 blocks for any chrom
+	// WHC: randomly generate 0, 1, 2
+	// WHC: which correspond to ori&dup_1, ori&dup_2 and dup_1&dup_2 pairs
+
+	int which_pair = pick_a_pair(pick_a_pair_mode);
+	//	int which_pair = rand() % 3;
+
+	if (which_pair == 0) {	// WHC: ori&dup_1 pair
+	  block_1 = ori_index;
+	  block_2 = dup_1;
+	  donorRatio = p_donorRatio[0][2];
+	} else if (which_pair == 1) { // WHC: ori&dup_2 pair
+	  block_1 = ori_index;
+	  block_2 = dup_2;
+	  donorRatio = p_donorRatio[0][4];
+	} else if (which_pair == 2) { // WHC: dup_1&dup_2 pair
+	  block_1 = dup_1;
+	  block_2 = dup_2;
+	  donorRatio = p_donorRatio[2][4];
+	} else {			// WHC: wrong
+	  cout << "something is wrong in void conversion()\n";
+	  exit(0);
+	}
+
       } else {
 	cout << "wrong on void conversion_for_phaseVI() 2\n";
 	exit(0);
@@ -3093,6 +3307,8 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
       }
 
       //      if (chr2->b == 5 || chr1->b == 5) {; not necessary anymore
+      if (chr2->b == chr1->b) {				     // WHC: very necessary!!!
+	// WHC: as long as they have the same number of blocks
 	p = rand() / ((float) RAND_MAX + 1); // WHC: randomly choose from which chromosome to which
 	if (p < 0.5) {
 	  chrDonor = i;
@@ -3101,17 +3317,61 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
 	  chrDonor = partner;
 	  chrReceptor = i;
 	}
-
+      } else if (chr2->b == 5 && chr1->b == 6) {
+	// WHC: if they have different #blocks
+	if (donor == dup_1) {
+	  chrDonor = i;
+	  chrReceptor = partner;
+	} else if (receptor == dup_1) {
+	  chrReceptor = i;
+	  chrDonor = partner;
+	} else if (donor != dup_1 && receptor != dup_1) {
+	  p = rand() / ((float) RAND_MAX + 1); // WHC: randomly choose from which chromosome to which
+	  if (p < 0.5) {
+	    chrDonor = i;
+	    chrReceptor = partner;
+	  } else {
+	    chrDonor = partner;
+	    chrReceptor = i;
+	  }
+	} else {
+	  cout << "WRONGWRONGWRONG\n";
+	  exit(0);
+	}
+      } else if (chr2->b == 6 && chr1->b == 5) {
+	if (donor == dup_1) {
+	  chrDonor = partner;
+	  chrReceptor = i;
+	} else if (receptor == dup_1) {
+	  chrReceptor = partner;
+	  chrDonor = i;
+	} else if (donor != dup_1 && receptor != dup_1) { // WHC: neither donor or receptor is dup_1
+	  p = rand() / ((float) RAND_MAX + 1); // WHC: randomly choose from which chromosome to which
+	  if (p < 0.5) {
+	    chrDonor = i;
+	    chrReceptor = partner;
+	  } else {
+	    chrDonor = partner;
+	    chrReceptor = i;
+	  }
+	} else {
+	  cout << "WRONGWRONGWRONG\n";
+	  exit(0);
+	}
+      } else {
+	cout << "This should not happen. conversion_for_phaseVI().\n";
+	exit(0);
+      }
 
       // end of new donor/receptor selection method
       /* ================================================================================================ */
-      
+
     } else {
       // WHC: if IGCmatrix[i][t] == false, this means that no IGC between chroms will happen, due to void genealogy()
       // WHC: but IGC could still happen within chrom
       p = rand() / ((float) RAND_MAX + 1);
       // WHC: should distinguish between 2 duplications and 3 duplications
-      
+
       if (chr1->b == 5) {
 	int block_1 = ori_index;
 	int block_2 = dup_2;
@@ -3136,7 +3396,7 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
 	  IGC = 1;
 	  // Determines which block will be the donor and which will be the receptor
 
-	  int which_pair = pick_a_pair(1);
+	  int which_pair = pick_a_pair(pick_a_pair_mode);
 	  //	  int which_pair = rand() % 3;
 	  int block_1, block_2;
 	  float donorRatio;
@@ -3173,7 +3433,7 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
     }
 
     // WHC: not changed, remains the same; I assume it will work :)
-    
+
     if(IGC == 1) {
       //      cout << "IGC should not equal to 1\n";
       //      exit(0);
@@ -3192,7 +3452,7 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
 	  junction += 1;
 	}
       }
-	
+
       // Tests for MEPS, 100% identity tract to allow conversion
       vald0 = location(junction - meps/2, pres, chrDonor, donor);
       valdf = location(junction + meps/2, pres, chrDonor, donor);
@@ -3254,6 +3514,16 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
       }
     }
   } else { cout << "mistake happens.\n"; exit(0); }
+
+  /*
+  finish = clock();
+  totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+  if (totaltime >= time_inter) {
+    cout << "The runtime of conversion_for_phaseVI() is " << totaltime << '\n';
+  }
+  */
+
+
 }
 
 /* ================================================================ */
@@ -3265,8 +3535,15 @@ void conversion_for_phaseVI (float probability, int t, int i, int pres, float (*
 void statistics(int prev, bool does_print) {
   int j, o;
   float * resultsSample;
+
+  //  clock_t start, finish;
+  //  double totaltime;
+
+  //  start = clock();
+
+
   //  float results_pairwise_divergence_between;
-  
+
   // WHC: FSL() will delete fixed/lost mutations
   // WHC: and make a new muttable[]
 
@@ -3300,14 +3577,14 @@ void statistics(int prev, bool does_print) {
   cout << "The number of true in multihit_single is " << num_of_true_in_multihit_single << " and false is " << num_of_false_in_multihit_single << endl;
   cout << "Total number of true is " << num_of_true_in_multihit + num_of_true_in_multihit_single << endl;
   */
-  
+
   if (duFreq_2 == false) {
     FSL(prev); // Creating the summary vector fixedLostForAll
     // INFORMATION RECOVERED FROM SAMPLES
   } else {
     FSL_since_phaseIV(prev);
   }
-  
+
   for (o = 0; o < numofsamples; o++) {
     SamplingIndividuals(sampleN[o]);
 
@@ -3327,7 +3604,7 @@ void statistics(int prev, bool does_print) {
     cout << "from their calculation: " << resultsSample[1] << '\n';
 
     // WHC: my calculations
-    
+
     float temp_results = 0.0;
     for (int c_1 = 0; c_1 < 2 * sampleN[o]; ++c_1) {
       for (int c_2 = 0; c_2 < 2 * sampleN[o]; ++c_2) {
@@ -3344,10 +3621,10 @@ void statistics(int prev, bool does_print) {
     // mine results and theirs always have a difference by factor 2n/(2n-1)
     cout << "from my calculation: " << temp_results / (2 * sampleN[o] * 2 * sampleN[o]) << '\n';
     cout << "from my adjusted calculation: " << temp_results / (2 * sampleN[o] * (2 * sampleN[o] - 1)) << '\n';
-    
+
     */
     /* ================================================================ */
-    
+
     // WHC: for calculating the pairwise-divergence between blockA and blockB
     // WHC: will just try to calculate blockA = 0, blockB = 3 for now
     if (duFreq == false) {
@@ -3357,19 +3634,22 @@ void statistics(int prev, bool does_print) {
 	interblock_divergence[k] << '0' << " ";
       }
     } else if (duFreq == true && duFreq_2 == false) {
-      cout << "between original and dup_1: " << pairwise_divergence_between(prev, sampleN[o], 0, 3) << '\n';
-      
+      //      cout << "between original and dup_1: " << pairwise_divergence_between(prev, sampleN[o], 0, 3) << '\n';
+
       // between original and dup_1
       interblock_divergence[0] << pairwise_divergence_between(prev, sampleN[o], 0, 3) << " ";
       // between original and dup_2
       interblock_divergence[1] << 0 << " ";
       // between dup_1 and dup_2
       interblock_divergence[2] << 0 << " ";
-      
+
     } else if (duFreq_2 == true && loseFreq == false) {
-      cout << "between original and dup_1: " << pairwise_divergence_between(prev, sampleN[o], 0, 3) << '\n';
-      cout << "between original and dup_2: " << pairwise_divergence_between(prev, sampleN[o], 0, 5) << '\n';
-      cout << "between dup_1 and dup_2: " << pairwise_divergence_between(prev, sampleN[o], 3, 5) << '\n';
+      //      cout << "between original and dup_1: " << pairwise_divergence_between(prev, sampleN[o], 0, 3) << '\n';
+      //      cout << "ref: between original and dup_1: " << pairwise_divergence_between_reference(prev, sampleN[o], 0, 3) << '\n';
+      //      cout << "between original and dup_2: " << pairwise_divergence_between(prev, sampleN[o], 0, 5) << '\n';
+      //      cout << "ref: between original and dup_2: " << pairwise_divergence_between_reference(prev, sampleN[o], 0, 5) << '\n';
+      //      cout << "between dup_1 and dup_2: " << pairwise_divergence_between(prev, sampleN[o], 3, 5) << '\n';
+      //      cout << "ref: between dup_1 and dup_2: " << pairwise_divergence_between_reference(prev, sampleN[o], 3, 5) << '\n';
 
       // between original and dup_1
       interblock_divergence[0] << pairwise_divergence_between(prev, sampleN[o], 0, 3) << " ";
@@ -3377,7 +3657,7 @@ void statistics(int prev, bool does_print) {
       interblock_divergence[1] << pairwise_divergence_between(prev, sampleN[o], 0, 5) << " ";
       // between dup_1 and dup_2
       interblock_divergence[2] << pairwise_divergence_between(prev, sampleN[o], 3, 5) << " ";
-      
+
     } else if (loseFreq == true) {
       cout << "should not be here.\n";
       exit(0);
@@ -3388,9 +3668,22 @@ void statistics(int prev, bool does_print) {
 
   }
   // CALCULATES THE NUMBER OF PRIVATE & SHARED MUTATIONES BETWEEN BLOCKS 0 & 2
+
+
+
   DivergenceForAll(0, 3, prev);
   DivergenceForAll(0, 5, prev);
   DivergenceForAll(3, 5, prev);
+
+  /*
+  finish = clock();
+  totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+  if (totaltime >= time_inter) {
+    cout << "The runtime of statistics() is " << totaltime << '\n';
+  }
+  */
+
+
 }
 
 /* ================================================================ */
@@ -3399,6 +3692,12 @@ void statistics(int prev, bool does_print) {
 void statistics_for_phaseVI(int prev, bool does_print) {
   int j, o;
   float * resultsSample;
+
+  //  clock_t start, finish;
+  //  double totaltime;
+
+  //  start = clock();
+
 
   // WHC: FSL() will delete fixed/lost mutations
   // WHC: and make a new muttable[]
@@ -3439,9 +3738,9 @@ void statistics_for_phaseVI(int prev, bool does_print) {
 
   */
 
-  
+
   FSL_since_phaseIV(prev);
-  
+
   for (o = 0; o < numofsamples; o++) {
     SamplingIndividuals(sampleN[o]);
 
@@ -3453,24 +3752,34 @@ void statistics_for_phaseVI(int prev, bool does_print) {
     }
 
 
-    
+
     // WHC: for calculating the pairwise-divergence between blockA and blockB
     // WHC: will just try to calculate blockA = 0, blockB = 3 for now
     if (loseFreq == false) { cout << "probably should not use this.\n"; exit(0); }
-    
-    cout << "between original and dup_1: " << pairwise_divergence_between(prev, sampleN[o], 0, 3) << '\n';
+
+    //    cout << "between original and dup_1: " << pairwise_divergence_between(prev, sampleN[o], 0, 3) << '\n';
     interblock_divergence[0] << pairwise_divergence_between(prev, sampleN[o], 0, 3) << " ";
-    
-    cout << "between original and dup_2: " << pairwise_divergence_between(prev, sampleN[o], 0, 5) << '\n';
+
+    //    cout << "between original and dup_2: " << pairwise_divergence_between(prev, sampleN[o], 0, 5) << '\n';
     interblock_divergence[1] << pairwise_divergence_between(prev, sampleN[o], 0, 5) << " ";
-    
-    cout << "between dup_1 and dup_2: " << pairwise_divergence_between(prev, sampleN[o], 5, 3) << '\n';
+
+    //    cout << "between dup_1 and dup_2: " << pairwise_divergence_between(prev, sampleN[o], 5, 3) << '\n';
     interblock_divergence[2] << pairwise_divergence_between(prev, sampleN[o], 5, 3) << " ";
   }
   // CALCULATES THE NUMBER OF PRIVATE & SHARED MUTATIONES BETWEEN BLOCKS 0 & 2
   DivergenceForAll(0, 3, prev);
   DivergenceForAll(0, 5, prev);
   DivergenceForAll(3, 5, prev);
+
+  /*
+  finish = clock();
+  totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+  if (totaltime >= time_inter) {
+    cout << "The runtime of statistics_for_phaseVI() is " << totaltime << '\n';
+  }
+  */
+
+
 }
 
 /* ================================================================ */
@@ -3489,7 +3798,7 @@ void FSL(int hh) {
     // WHC: the previous question may be vitally important, since this could cause a continuously increase of multihit[]==true
 
     // WHC: IMPORTANT need to doulbe check here!!!!???
-    
+
     // muttable[m].frequency = ((float) muttable[m].frequency) / (N * 2);
     if (muttable[m].block == 3 && loseFreq == false) {
       muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 3, N));
@@ -3513,7 +3822,13 @@ void FSL(int hh) {
       cout << "INcorrect\n";
       exit(0);
     }
-    
+
+    if (muttable[m].frequency > 1) {
+      cout << "The frequency cannot be over 1 in FSL()!\n";
+      cout << "block = " << muttable[m].block << ", freq = " << muttable[m].frequency << '\n';
+      cout << "and the absolute freq is " << muFrequencyIntWholePopAndSample(hh, muttable[m].position, muttable[m].block, N) << '\n';
+      exit(0);
+    }
   }
   for (m = 0, mm = 0; m < MutCount; m++) {
     // SET MULTIHIT TO FALSE FOR MUTATIONS THAT HAVE BEEN LOST
@@ -3525,7 +3840,7 @@ void FSL(int hh) {
 
     if (muttable[m].frequency == 0 && muttable[m].block == 1) {
       // WHC: this should not be correct???? single-block should have its own multihit vector????
-      
+
       multihit_single[muttable[m].position] = false;
     }
     if (muttable[m].frequency == 0 && muttable[m].block == 0 && duFreq == false) {
@@ -3565,7 +3880,7 @@ void FSL(int hh) {
       }  else if ((duFreq == true) && (duFreq_2 == false)) {
         // IF THE DUPLICATION HAS OCCURRED
 	// WHC: but before phaseIV()
-	
+
 	// CHECKS THE BLOCK IN WHICH IT HAS OCCURRED
 	// AND LOOKS FOR THE POSITION OF THE MUTATION IN MUTTABLE FOR THE OTHER BLOCK
 	if (muttable[m].block == 3) {
@@ -3627,10 +3942,10 @@ void FSL(int hh) {
 
 	/* ================================================================ */
 	/* WHC: this clause is a modificate of if (duFreq == true && duFreq_2 == false) */
-	
+
         // IF THE SECONDE DUPLICATION HAS OCCURRED
 	// WHC: within or after phaseIV() (probabily will write one specific for phaseVI()...
-	
+
 	// CHECKS THE BLOCK IN WHICH IT HAS OCCURRED
 	// AND LOOKS FOR THE POSITION OF THE MUTATION IN MUTTABLE FOR THE OTHER BLOCK
 	if (muttable[m].block == 2) {
@@ -3652,9 +3967,9 @@ void FSL(int hh) {
 	}
 
 	// SEGREGATING
-	
+
 	// WHC: consider a senario with frequencies: 1, 0.5, 0 for m, otherm_1, otherm_2 !!!
-	
+
 	if (muttable[m].frequency > 0 && muttable[m].frequency < 1) {
 	  temporalmuttable[mm].block = muttable[m].block;
 	  temporalmuttable[mm].frequency = muttable[m].frequency;
@@ -3717,18 +4032,18 @@ void FSL(int hh) {
 	  // IF THE DUPLICATION IS FIXED IN THE OTHER BLOCK
 	  if ((muttable[otherm_1].frequency == 1) && (muttable[otherm_2].frequency == 1)) {
 	    // WHC: all 3 are fixed
-	    
+
 	    // WHC: why don't erase mutaitons in muttable[otherm]???
 	    // WHC: because otherm will go through this later?
 	    // WHC: and when going through mutation[otherm], because its partner is erased, won't enter this block(?)
 	    // WHC: I think it should erase mutation[otherm] too!
 	    // WHC: NO! Do not need to; because mutation[m].frequency will NOT change!
-	    
+
 	    EraseFixedMutations(muttable[m].position, muttable[m].block, hh); // WHC: only erase muttable[m], not muttable[otherm]
 
 	    // WHC: should I change multihit[] = false???
 	    // WHC: NO. EraseFixedMutations() already did that for you
-	    
+
 	  }// IF THE DUPLICATION IS SEGREGATING OR NOT PRESENT IN THE OTHER BLOCK
 	  else {
 	    temporalmuttable[mm].block = muttable[m].block;
@@ -3779,7 +4094,7 @@ void FSL(int hh) {
 	    muttable[otherm_2].block = -9;
 	  }
 
-	  
+
 	  }
 	} else if (muttable[m].frequency == 0) {	// LOST (TO CONSIDER IT LOST IT WOULD HAVE TO BE LOST IN BOTH BLOCKS)
 	  if (muttable[otherm_1].frequency == 0 && muttable[otherm_2].frequency == 0) {
@@ -3790,7 +4105,7 @@ void FSL(int hh) {
 	  exit(0);
 	}
 
-	
+
 	/* WHC: this clause is a modificate of if (duFreq == true && duFreq_2 == false) */
 	/* ================================================================ */
       } else {
@@ -3816,17 +4131,28 @@ void FSL_since_phaseIV(int hh) {
   int m, otherm=0, mm;
 
   int make_false_count = 0;
-  
+
+  //  clock_t start, finish;
+  //  double totaltime;
+
+  //  start = clock();
+
+
   for (m = 0; m < MutCount; m++) {
     muttable[m].frequency = muFrequencyIntWholePopAndSample(hh, muttable[m].position, muttable[m].block, N);
     // WHC: What if this block is lost, should I use (N * 2) or the #chroms carrying this block????
     // WHC: the previous question may be vitally important, since this could cause a continuously increase of multihit[]==true
 
     // WHC: IMPORTANT need to doulbe check here!!!!???
-    
+
     // muttable[m].frequency = ((float) muttable[m].frequency) / (N * 2);
     if (muttable[m].block == 3 && loseFreq == false) {
       muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq(hh, 3, N));
+      if (2 * N != DupliFreq(hh, 3, N)) {
+	cout << "This 2 values should equal over here!\n";
+	exit(0);
+      }
+
     } else if (muttable[m].block == 3 && loseFreq == true) {
       muttable[m].frequency = ((float) muttable[m].frequency) / (DupliFreq_for_phaseVI(hh, 3, N));
     } else if (muttable[m].block == 5 && loseFreq == false) {
@@ -3851,9 +4177,12 @@ void FSL_since_phaseIV(int hh) {
 
     if (muttable[m].frequency > 1) {
       cout << "The frequency cannot be over 1!\n";
+      cout << "block = " << muttable[m].block << ", freq = " << muttable[m].frequency << '\n';
+      cout << "and the absolute freq is " << muFrequencyIntWholePopAndSample(hh, muttable[m].position, muttable[m].block, N) << '\n';
+
       exit(0);
     }
-    
+
   }
   for (m = 0, mm = 0; m < MutCount; m++) {
     // SET MULTIHIT TO FALSE FOR MUTATIONS THAT HAVE BEEN LOST
@@ -3868,7 +4197,7 @@ void FSL_since_phaseIV(int hh) {
       cout << "WRONG! You shouldn't use this.\n";
       exit(0);
     }
-    
+
     // IF MUTATION IS IN THE SINGLE-COPY BLOCK
     if (muttable[m].block == 1) {
       // SEGREGATING
@@ -3896,10 +4225,10 @@ void FSL_since_phaseIV(int hh) {
 
 	/* ================================================================ */
 	/* WHC: this clause is a modificate of if (duFreq == true && duFreq_2 == false) */
-	
+
         // IF THE SECONDE DUPLICATION HAS OCCURRED
 	// WHC: within or after phaseIV() (probabily will write one specific for phaseVI()...
-	
+
 	// CHECKS THE BLOCK IN WHICH IT HAS OCCURRED
 	// AND LOOKS FOR THE POSITION OF THE MUTATION IN MUTTABLE FOR THE OTHER BLOCK
 	if (muttable[m].block == 3) {
@@ -3924,7 +4253,7 @@ void FSL_since_phaseIV(int hh) {
 	  cout << "check out here\n";
 	  exit(0);
 	}
-	
+
 	// WHC: fixed or lost
 	if (muttable[m].frequency == 1 && muttable[otherm_1].frequency == 1 && muttable[otherm_2].frequency == 1) {
 	  EraseFixedMutations(muttable[m].position, muttable[m].block, hh);
@@ -3941,7 +4270,7 @@ void FSL_since_phaseIV(int hh) {
 	  //	  multihit[muttable[otherm_2].position] = false;
 
 	  make_false_count += 1;
-	  
+
 	  muttable[otherm_1].block = -9;
 	  muttable[otherm_2].block = -9;
 	} else if (
@@ -3954,7 +4283,7 @@ void FSL_since_phaseIV(int hh) {
 	  temporalmuttable[mm].frequency = muttable[m].frequency;
 	  temporalmuttable[mm].position = muttable[m].position;
 	  mm++;
-	  
+
 	  temporalmuttable[mm].block = muttable[otherm_1].block;
 	  temporalmuttable[mm].frequency = muttable[otherm_1].frequency;
 	  temporalmuttable[mm].position = muttable[otherm_1].position;
@@ -4029,7 +4358,12 @@ void FSL_since_phaseIV(int hh) {
   }
   cout << "The number of true in multihit_single is " << num_of_true_in_multihit_single << " and false is " << num_of_false_in_multihit_single << endl;
   */
-  
+
+  //  finish = clock();
+  //  totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+  //  cout << "The runtime of FSL_since_phaseIV() is " << totaltime << '\n';
+
+
 }
 
 
@@ -4120,7 +4454,7 @@ void EraseFixedMutations(int fixed, int block, int prev) {
   } else {
     multihit_single[fixed] = false;
   }
-  
+
   for (ii = 0; ii < 2 * N; ii++) {
     if (pointer[prev][ii]->mpb[block] == 0) { continue; } // WHC: vital for this
     pointer[prev][ii]->mpb[block]--;
@@ -4139,6 +4473,18 @@ void EraseFixedMutations(int fixed, int block, int prev) {
 // also prints SFS for blocks 0, 1 and 2
 // also calculates pi, S, eta, H
 float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
+
+  //  clock_t start, finish;
+  //  double totaltime;
+
+  //  start = clock();
+
+
+  if (does_print == true) {
+    cout << "probabily something wrong.\n";
+    exit(0);
+  }
+
   int s = n;
   int p, i, j, k, index, m, number, duplicationFreq;
   //  int xi[2 * s], list [2 * N];
@@ -4232,7 +4578,7 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
 	  // WHC: this if () clause shows multiple times, it is to test whether the specific mutation (at pos position),
 	  // WHC: shoulds in the specific individual (sample[i]) or not
 	  // WHC: notice that the k < pointer[h][sample[i]]->mpb[block] is NECESSARY (hint: if there is no such mutation, return value..)
-	  
+
 	  mutationsNewFile[block] << "1";
 	}else{
 	  mutationsNewFile[block] << "0";
@@ -4250,7 +4596,7 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
   //FIND THE UNFOLDED SITE FREQUENCY SPECTRUM
   //xi[i] IS AN ARRAY THAT COUNTS THE NUMBER OF POLYMORPHIC SITES THAT HAVE i COPIES OF THE MUTATION
   // WHC: so the output file SFS_x_ID means -- 12, 10, 20,... there are 12 polymophic sites with 1 copy, 10 with 2 copies, 20 with 3...
-  
+
   for (i = 1; i < 2 * s; i++) {
     for (j = 0; j < number; j++) {
       if (mutationCounts[j] == i) {
@@ -4273,6 +4619,15 @@ float * SiteFrequencySpectrumPrint(int h, int block, int n, bool does_print) {
   }
   value /= (s * (2 * s - 1));
   results[1] = value;
+
+  /*
+  finish = clock();
+  totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+  if (totaltime > time_inter) {
+    cout << "The runtime of SiteFrequencySpectrumPrint() is " << totaltime << '\n';
+  }
+  */
+
   return results;
 
 }
@@ -4289,6 +4644,11 @@ float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool doe
   float value, mufreq;
   static float results[] = {0, 0};
 
+  //  clock_t start, finish;
+  //  double totaltime;
+
+  //  start = clock();
+
   results[0] = 0;
   results[1] = 0;
 
@@ -4303,7 +4663,7 @@ float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool doe
     // WHC: as this is in phaseVI(), don't need this
     if (s * 2 != DupliFreq(h, 5, n)) { cout << "Hi, there is an error.\n"; exit(0); }
   }
-  
+
   if (s == 0) {
     // WHC: as this is in pahseVI(), this should not happen (and also due to my limitation that chroms not carrying dup_1 ranges from 1 to (2 * N - 1)
     // WHC: wrong!! as we are sampling, not the whole population; so there could be possibilities when s == 0
@@ -4383,7 +4743,7 @@ float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool doe
 	  // WHC: this if () clause shows multiple times, it is to test whether the specific mutation (at pos position),
 	  // WHC: shoulds in the specific individual (sample[i]) or not
 	  // WHC: notice that the k < pointer[h][sample[i]]->mpb[block] is NECESSARY (hint: if there is no such mutation, return value..)
-	  
+
 	  mutationsNewFile[block] << "1";
 	}else{
 	  mutationsNewFile[block] << "0";
@@ -4401,7 +4761,7 @@ float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool doe
   //FIND THE UNFOLDED SITE FREQUENCY SPECTRUM
   //xi[i] IS AN ARRAY THAT COUNTS THE NUMBER OF POLYMORPHIC SITES THAT HAVE i COPIES OF THE MUTATION
   // WHC: so the output file SFS_x_ID means -- 12, 10, 20,... there are 12 polymophic sites with 1 copy, 10 with 2 copies, 20 with 3...
-  
+
   for (i = 1; i < 2 * s; i++) {
     for (j = 0; j < number; j++) {
       if (mutationCounts[j] == i) {
@@ -4424,6 +4784,16 @@ float * SiteFrequencySpectrumPrint_for_phaseVI(int h, int block, int n, bool doe
   }
   value /= (s * (2 * s - 1));
   results[1] = value;
+
+  /*
+  finish = clock();
+  totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+  if (totaltime > time_inter) {
+    cout << "The runtime of SiteFrequencySpectrumPrint_for_phaseVI() is " << totaltime << '\n';
+  }
+  */
+
+
   return results;
 
 }
@@ -4442,6 +4812,12 @@ void DivergenceForAll(int blockA, int blockB, int h) {
   int mutBlockB = 0;
   int mutSharedAB = 0;
   int mutSharedABComp = 0;
+
+  //  clock_t start, finish;
+  //  double totaltime;
+
+  //  start = clock();
+
 
   for (i = 0; i < 2 * N; i++) {
     for (k = 0; k < pointer[h][i]->mpb[blockA]; k++) {
@@ -4487,6 +4863,16 @@ void DivergenceForAll(int blockA, int blockB, int h) {
 
     }
   }
+
+  /*
+  finish = clock();
+  totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+  if (totaltime > time_inter) {
+    cout << "The runtime of DivergenceForAll() is " << totaltime << '\n';
+  }
+  */
+
+
 }
 
 
@@ -4522,7 +4908,7 @@ int DupliFreq(int h, int block, int n) {
   } else if (loseFreq == true) {
     // WHC: this only need to work for counting block = 4, since block = 2 is counted by DupliFreq_for_phaseVI()
     if (block != 5) { cout << "Does not do the job\n"; exit(0); }
-    
+
     if (n == N){
       for (i = 0; i < 2 * n; i++) {
 	//      if (pointer[h][i]->b == (block + 1)) {
@@ -4544,7 +4930,7 @@ int DupliFreq(int h, int block, int n) {
     cout << "no way to be here\n";
     exit(0);
   }
-  
+
   return quantity;
 }
 
@@ -4556,7 +4942,7 @@ int DupliFreq_for_phaseVI(int h, int block, int n) {
   int i = 0, quantity = 0;
 
   if (loseFreq != true || block != 3) { cout << "this boy does not do this job.\n"; exit(0); }
-  
+
   if (n == N){
     for (i = 0; i < 2 * n; i++) {
       //      if (pointer[h][i]->b == (block + 1)) {
@@ -4642,7 +5028,7 @@ int muFrequencyCollapsedCallingFromSample(int h, int pos, int n) {
 //in the sample), and jumps (the intervals with which to search within the sample)
 int muFrequencySampleIntDiscont(int h, int pos, int block, int s, int init, int jumps) {
   int i, quantity, k;
-	
+
   for (i = init, quantity = 0; i < 2 * s; i += jumps) {
     k = location(pos, h, sample[i], block);
     if (pointer[h][sample[i]]->mutation[block][k] == pos && k < pointer[h][sample[i]]->mpb[block]) {
@@ -4752,7 +5138,7 @@ int GenerateFixationTrajectory(int maxTime, int fixationTime) {
     float u, p, varP, psv;
     float fixationTrajectoryFloat[maxTime]; // Probability of fixation of the duplication in each generation (DupInd/2N)(relative freq)
 
-	
+
     // Initialize duplication
     for (tt = 0; tt < 2; tt++) {
       fixationTrajectoryFloat[tt] = (float) 1 / (2 * N);
@@ -4806,9 +5192,9 @@ void Generate_phaseVI_trajectory(int mode) {
     solved when I use for (int i = 1; i < (PHASE_VI_LENGTH) + 1; ++i) {} clause
     !! As in their phaseII(), GenerateFixationTrajectory(STRUCTURED + 1, ), there is a +1 there!
 
-  
+
   phaseVI_trajectory[0] = 1;
-  
+
   //  for (int i = 1; i < (PHASE_VI_LENGTH); ++i) {
   for (int i = 1; i < (PHASE_VI_LENGTH) + 1; ++i) {
     phaseVI_trajectory[i] = 1 + (rand() % (2 * N - 1)); // generating [1-(2N-1)]
@@ -4820,10 +5206,10 @@ void Generate_phaseVI_trajectory(int mode) {
   }
   cout << endl;
 
-  return;  
+  return;
   WHC: will abandom this random method for now
 
-  /* ================================================================ */  
+  /* ================================================================ */
 
   if (mode == 1) {
     phaseVI_trajectory[0] = 1;
@@ -4846,6 +5232,56 @@ void Generate_phaseVI_trajectory(int mode) {
       }
     }
 
+  } else if (mode == 3) {
+    // WHC: this is the frequence dependent selection mode
+    phaseVI_trajectory[0] = 1;
+    //    double p = (2*N - 1) / float (2 * N), q = 1 - p;
+    double p = 1 / float (2 * N), q = 1 - p;
+    double c = 0.02;
+    vector<double> w;
+    w.resize(3);
+    w[0] = 1 - c * (p * p);
+    w[1] = 1 - 2 * c * p * q;
+    w[2] = 1 - c * (q * q);
+
+    double stand;
+
+    for (int t = 1; t < (PHASE_VI_LENGTH) + 1; ++t) {
+      stand = (p*p * w[0]) + (2*p*q * w[1]) + (q*q * w[2]);
+      p += (c * p * q * (q - p) * (p*p - p*q + q*q)) / stand;
+
+
+      /* **************************************************************** */
+      // WHC: disturbance
+      if (p > 0.3 && p < 0.7) {
+	double prob = rand() / ((float) RAND_MAX + 1);
+	//      cout << prob << "\n";
+	//	double delta = (rand() % 4) / 100.0;
+	double delta = (rand() % 10) / 1000.0;
+	//      cout << "delta = " << delta << '\n';
+	if (prob < 0.5) {
+	  p += delta;
+	} else {
+	  p -= delta;
+	}
+      }
+
+      /* **************************************************************** */
+      q = 1 - p;
+
+      //    cout << p << '\t' << q << "\t" << p + q << '\n';
+      //    cout << p << " ";
+      //      cout << int (2 * N * p) << " ";
+
+      phaseVI_trajectory[t] = int (2 * N * p);
+      cout << phaseVI_trajectory[t] << " ";
+
+      w[0] = 1 - c * (p * p);
+      w[1] = 1 - 2 * c * p * q;
+      w[2] = 1 - c * (q * q);
+    }
+
+    cout << '\n';
   }
 }
 
@@ -4869,20 +5305,20 @@ int minim(int n1, int n2) {
   else { return n1; }
 }
 
-bool sortx (fertility_info i,fertility_info j) { 
+bool sortx (fertility_info i,fertility_info j) {
   int tt1 = (i).x;
   int tt2 = (j).x;
-  return (tt1<tt2); 
+  return (tt1<tt2);
 }
 
-bool sorty (fertility_info i,fertility_info j) { 
+bool sorty (fertility_info i,fertility_info j) {
   int tt1 = (i).y;
   int tt2 = (j).y;
-  return (tt1<tt2); 	
+  return (tt1<tt2);
 }
 
 
-// WHC: randomly pick 0, 1 or 2, with 
+// WHC: randomly pick 0, 1 or 2, with
 int pick_a_pair(int mode) {
   if (mode == 1) {		// mode 1, giving dup_1 lower chance
     //    int p = rand() % 10;	// generate 0 - 9
@@ -4911,7 +5347,7 @@ int pick_a_pair(int mode) {
 
     return p;
   }
-  
+
 }
 
 // WHC: this number_of_nucleotide_diff() is for counting how many nucleotides are different between blockA in chrom i, and blockB in chrom j; for calculating pairwise-divergence between any two blocks
@@ -4919,7 +5355,7 @@ int pick_a_pair(int mode) {
 float number_of_nucleotide_diff(int blockA, int blockB, int chrom_1, int chrom_2, int h) {
   // only cares about a pair of blockA and blockB; iteration will be done in statistics() and statistics_for_phaseVI()
   // chrom_1 is the chrom that blockA belongs to; chrom_2 is the chrom that blockB belongs to
-  
+
   int j;
   int mutBlockA = 0, mutBlockB = 0, mutSharedAB = 0, mutSharedABComp = 0;
 
@@ -4929,7 +5365,7 @@ float number_of_nucleotide_diff(int blockA, int blockB, int chrom_1, int chrom_2
     cout << pointer[h][chrom_1]->b << " " << pointer[h][chrom_2]->b << '\n';
     exit(0);
   }
-  
+
   for (int k = 0; k < pointer[h][chrom_1]->mpb[blockA]; ++k) {
     // iterate through blockA in chrom_1
     j = location(pointer[h][chrom_1]->mutation[blockA][k], h, chrom_2, blockB);
@@ -4957,22 +5393,31 @@ float number_of_nucleotide_diff(int blockA, int blockB, int chrom_1, int chrom_2
 
   float per_nucleotide_diff = ((float) ( mutBlockA + mutBlockB)) / ((float) BLOCKLENGTH);
   // WHC: IMPORTANT! which one should I return???? Should I divide by BLOCKLENGTH or not???
-  
+
   //  cout << mutBlockA << " " << mutBlockB << '\n';
   // return per_nucleotide_diff;
   return (mutBlockA + mutBlockB);
 }
 
-float pairwise_divergence_between(int h, int n, int blockA, int blockB) {
+
+//  WHC: fail-safe version; for the sake of speed, optimized by another version
+
+float pairwise_divergence_between_reference(int h, int n, int blockA, int blockB) {
   // n = sampleN[o]
     int num_of_chrom_carrying_blockA = 0, num_of_chrom_carrying_blockB = 0;
     float results_pairwise_divergence_between = 0.0;
+
+    //    clock_t start, finish;
+    //    double totaltime;
+
+    //    start = clock();
+
 
     if (blockA == blockB) {
       cout << "well, this was not tested yet.\n";
       exit(0);
     }
-    
+
     // double check the number of chroms carrying blockA or blockB
     int num_blockA = 0, num_blockB = 0;
     if (duFreq == true && duFreq_2 == false) {
@@ -4981,12 +5426,12 @@ float pairwise_divergence_between(int h, int n, int blockA, int blockB) {
 	if (pointer[h][sample[i]]->b == 4) { ++num_blockB; }
       }
     }
-    
+
     for (int r_1 = 0; r_1 < 2 * n; ++r_1) {
       if (duFreq == false) {
 	cout << "this cannot be done without duplicated blocks!\n";
 	exit(0);
-	
+
       } else if (duFreq == true && duFreq_2 == false) {
 	//	num_of_chrom_carrying_blockA = 0; should not add this here
 	num_of_chrom_carrying_blockB = 0;
@@ -5000,7 +5445,7 @@ float pairwise_divergence_between(int h, int n, int blockA, int blockB) {
 	    //	    cout << results_pairwise_divergence_between << " ";
 	  }
 	}
-	
+
       } else if (duFreq_2 == true && loseFreq == false) {
 	num_of_chrom_carrying_blockA = 0;
 	num_of_chrom_carrying_blockB = 0;
@@ -5013,7 +5458,7 @@ float pairwise_divergence_between(int h, int n, int blockA, int blockB) {
 	  cout << "blockA should always be the smaller block.\n";
 	  exit(0);
 	}
-	
+
 	if (blockB == 3) {
 	  num_of_chrom_carrying_blockB = 2 * n;
 	} else if (blockB == 5) {
@@ -5030,7 +5475,7 @@ float pairwise_divergence_between(int h, int n, int blockA, int blockB) {
 	    //	    cout << results_pairwise_divergence_between << " ";
 	  }
 	}
-	
+
       } else if (loseFreq == true) {
 	num_of_chrom_carrying_blockA = 0;
 	num_of_chrom_carrying_blockB = 0;
@@ -5068,18 +5513,18 @@ float pairwise_divergence_between(int h, int n, int blockA, int blockB) {
 
 	for (int r_2 = 0; r_2 < 2 * n; ++r_2) {
 	  if (blockB == 3 && pointer[h][sample[r_2]]->b == 5) { continue; }
-	  
+
 	  results_pairwise_divergence_between += number_of_nucleotide_diff(blockA, blockB, sample[r_1], sample[r_2], h);
 	    //	    cout << results_pairwise_divergence_between << " ";
 	}
-	
+
       } else {
 	cout << "could not enter here.\n";
 	exit(0);
       }
     }
 
-    
+
     if (duFreq == true && duFreq_2 == false) {
       if (num_of_chrom_carrying_blockA != 2 * n) { cout << "WRONGWRONG\n"; exit(0); }
       if (num_of_chrom_carrying_blockB != num_blockB) { cout << "wrong number of chromB.\n"; exit(0); }
@@ -5088,7 +5533,7 @@ float pairwise_divergence_between(int h, int n, int blockA, int blockB) {
       cout << "The num_of_chrom_carrying_blockA should always be 2 * n instead of " << num_of_chrom_carrying_blockA << '\n';
       exit(0);
     }
-    
+
     if (num_of_chrom_carrying_blockA > 2 * n || num_of_chrom_carrying_blockB > 2 * n) {
       cout << num_of_chrom_carrying_blockA << " " << num_of_chrom_carrying_blockB << '\n';
       cout << "something wrong in counting.\n";
@@ -5099,9 +5544,177 @@ float pairwise_divergence_between(int h, int n, int blockA, int blockB) {
       // WHC: avoid any 0 numbers
       return 0.0;
     }
-    
+
     results_pairwise_divergence_between = results_pairwise_divergence_between / (num_of_chrom_carrying_blockA * num_of_chrom_carrying_blockB);
-    
+
+
+    /*
+    finish = clock();
+    totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+    if (totaltime > time_inter) {
+      cout << "The runtime of pairwise_divergence_between_reference() is " << totaltime << '\n';
+    }
+    */
+
+    return results_pairwise_divergence_between;
+
+}
+
+
+
+
+
+
+float pairwise_divergence_between(int h, int n, int blockA, int blockB) {
+  // n = sampleN[o]
+  //    int num_of_chrom_carrying_blockA = 0, num_of_chrom_carrying_blockB = 0;
+    float results_pairwise_divergence_between = 0.0;
+
+    //    clock_t start, finish;
+    //    double totaltime;
+
+    //    start = clock();
+
+    if (blockA == blockB) {
+      cout << "well, this was not tested yet.\n";
+      exit(0);
+    }
+
+    // double check the number of chroms carrying blockA or blockB
+    int num_blockA = 0, num_blockB = 0;
+    if (duFreq == true && duFreq_2 == false) {
+      num_blockA = 2 * n, num_blockB = 0;
+      for (int i = 0; i < 2 * n; ++i) {
+	if (pointer[h][sample[i]]->b == 4) { ++num_blockB; }
+      }
+    } else if (duFreq_2 == true && loseFreq == false) {
+
+      if (blockA == 0) {
+	num_blockA = 2 * n;
+      } else if (blockA == 3) {
+	num_blockA = 2 * n;
+      } else {
+	// to make sure that no need to skip blockA, as chrom_1 always contains blockA
+	cout << "blockA should always be the smaller block.\n";
+	exit(0);
+      }
+
+      if (blockB == 3) {
+	num_blockB = 2 * n;
+      } else if (blockB == 5) {
+	//	  cout << "initial num_of_chrom_carrying_blockB is " << num_of_chrom_carrying_blockB << '\n';
+	for (int temp = 0; temp < 2 * n; ++temp) {
+	  if (pointer[h][sample[temp]]->b == 6) { ++num_blockB; }
+	}
+      }
+
+    } else if (loseFreq == true) {
+      if (blockA == 0) {
+	num_blockA = 2 * n;
+      } else if (blockA == 5) {
+	num_blockA = 2 * n;
+      } else if (blockA == 3) {
+	cout << "this time blockA should only be 0 or 5.\n";
+	exit(0);
+      } else {
+	cout << "should be something wrong here.\n";
+	exit(0);
+      }
+
+      if (blockB == 3) {
+	for (int temp = 0; temp < 2 * n; ++temp) {
+	  if (pointer[h][sample[temp]]->b == 6) {
+	    ++num_blockB;
+	  }
+	}
+      } else if (blockB == 5) {
+	num_blockB = 2 * n;
+      } else if (blockB == 0) {
+	cout << "blockB cannot be 0";
+	exit(0);
+      } else {
+	cout << "should be a mistake here.\n";
+	exit(0);
+      }
+
+    } else {
+      cout << "mistake here\n";
+      exit(0);
+    }
+
+    for (int r_1 = 0; r_1 < 2 * n; ++r_1) {
+      if (duFreq == false) {
+	cout << "this cannot be done without duplicated blocks!\n";
+	exit(0);
+
+      } else if (duFreq == true && duFreq_2 == false) {
+
+	if (blockA != 0 || blockB != 3) { cout << "this blockA should only be 0 here and blockB only 3.\n"; exit(0); }
+
+	for (int r_2 = 0; r_2 < 2 * n; ++r_2) {
+	  if (pointer[h][sample[r_2]]->b == 4) { // has blockB = 3
+
+	    results_pairwise_divergence_between += number_of_nucleotide_diff(blockA, blockB, sample[r_1], sample[r_2], h);
+
+	  }
+	}
+
+      } else if (duFreq_2 == true && loseFreq == false) {
+
+	for (int r_2 = 0; r_2 < 2 * n; ++r_2) {
+	  if (pointer[h][sample[r_2]]->b >= blockB + 1) { // has blockB
+
+	    results_pairwise_divergence_between += number_of_nucleotide_diff(blockA, blockB, sample[r_1], sample[r_2], h);
+	    //	    cout << results_pairwise_divergence_between << " ";
+	  }
+	}
+
+      } else if (loseFreq == true) {
+
+	//	cout << "should use statistics_for_phaseVI()!\n";
+	//	exit(0);
+	// WHC: now, block A should only be 0 or 5
+
+	for (int r_2 = 0; r_2 < 2 * n; ++r_2) {
+	  if (blockB == 3 && pointer[h][sample[r_2]]->b == 5) { continue; }
+
+	  results_pairwise_divergence_between += number_of_nucleotide_diff(blockA, blockB, sample[r_1], sample[r_2], h);
+	    //	    cout << results_pairwise_divergence_between << " ";
+	}
+
+      } else {
+	cout << "could not enter here.\n";
+	exit(0);
+      }
+    }
+
+
+    if (num_blockA != 2 * n) {
+      cout << "The num_of_chrom_carrying_blockA should always be 2 * n instead of " << num_blockA << '\n';
+      exit(0);
+    }
+
+    if (num_blockA > 2 * n || num_blockB > 2 * n) {
+      cout << num_blockA << " " << num_blockB << '\n';
+      cout << "something wrong in counting.\n";
+      exit(0);
+    }
+
+    if (num_blockA == 0 || num_blockB == 0) {
+      // WHC: avoid any 0 numbers
+      return 0.0;
+    }
+
+    results_pairwise_divergence_between = results_pairwise_divergence_between / (num_blockA * num_blockB);
+
+    /*
+    finish = clock();
+    totaltime = (double)(finish - start) / CLOCKS_PER_SEC;
+    if (totaltime > time_inter) {
+      cout << "The runtime of pairwise_divergence_between() is " << totaltime << '\n';
+    }
+    */
+
     return results_pairwise_divergence_between;
 
 }
